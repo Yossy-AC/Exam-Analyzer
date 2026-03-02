@@ -228,13 +228,6 @@ async def composition_stats(year: int = None, university: str = ""):
             f"SELECT visual_info_type, COUNT(*) as count FROM passages {where} AND has_visual_info = 1 AND visual_info_type != '' GROUP BY visual_info_type",
             params,
         ).fetchall()
-
-        comp_detail_rows = conn.execute(
-            f"""SELECT university, year, question_number, comp_type, has_visual_info, visual_info_type
-            FROM passages {where} AND comp_type != 'none'
-            ORDER BY university, year, question_number""",
-            params,
-        ).fetchall()
     finally:
         conn.close()
 
@@ -255,17 +248,6 @@ async def composition_stats(year: int = None, university: str = ""):
             "labels": [r["visual_info_type"] for r in visual_type_rows],
             "data": [r["count"] for r in visual_type_rows],
         },
-        "details": [
-            {
-                "university": r["university"],
-                "year": r["year"],
-                "question": r["question_number"],
-                "comp_type": r["comp_type"],
-                "has_visual": bool(r["has_visual_info"]),
-                "visual_type": r["visual_info_type"] or "-",
-            }
-            for r in comp_detail_rows
-        ],
     })
 
 

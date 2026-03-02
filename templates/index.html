@@ -140,10 +140,6 @@
                     <canvas id="comp-visual-type-chart" height="250"></canvas>
                 </div>
             </div>
-            <div style="margin-top:16px">
-                <h4>大学別英作文一覧</h4>
-                <div id="comp-details-table"></div>
-            </div>
         </div>
 
         <!-- タブ5: 経年変化 -->
@@ -331,18 +327,6 @@ async function loadCompositionStats() {
 
     if (data.visual_type.labels.length) {
         createChart('comp-visual-type-chart', doughnutConfig(data.visual_type.labels, data.visual_type.data));
-    }
-
-    const el = document.getElementById('comp-details-table');
-    if (data.details.length) {
-        let html = '<table class="table"><thead><tr><th>大学</th><th>年度</th><th>問</th><th>形式</th><th>視覚情報</th><th>種別</th></tr></thead><tbody>';
-        for (const d of data.details) {
-            html += '<tr><td>' + d.university + '</td><td>' + d.year + '</td><td>' + d.question + '</td><td>' + d.comp_type + '</td><td class="center">' + (d.has_visual ? '○' : '×') + '</td><td>' + d.visual_type + '</td></tr>';
-        }
-        html += '</tbody></table>';
-        el.innerHTML = html;
-    } else {
-        el.innerHTML = '<p class="muted">英作文データなし</p>';
     }
 }
 
