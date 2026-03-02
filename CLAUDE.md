@@ -27,7 +27,7 @@ exam-text-classifier/
 │       └── export.py       # CSV/JSON/DBエクスポート
 ├── templates/              # Jinja2テンプレート
 │   ├── base.html
-│   ├── index.html          # ダッシュボード（5タブ）
+│   ├── index.html          # ダッシュボード（7タブ）
 │   ├── login.html
 │   └── partials/           # HTMXフラグメント
 ├── static/style.css
@@ -66,6 +66,20 @@ DB_PATH=./data/exam.db               # DB保存先
 - 大阪大: `(A)/(B)` 分割 → 別パッセージとして抽出
 - 九州大: `# Question [1]` → 角括弧付き番号に対応
 - 大阪大（外国語）: `university: 大阪大（外国語）` → 大学名と学部に分離、IDに学部を含める
+- `## Data` セクション: `## Questions` がない場合、`## Instructions` + `## Data` を設問セクションとして扱う（視覚情報検出のため）
+
+## 設問分析フィールド（5分類 + 視覚情報）
+- `has_jp_translation`: 和訳問題
+- `has_jp_explanation`: 日本語での説明・記述
+- `has_en_explanation`: 英語での説明・記述
+- `has_jp_summary`: 日本語での要約
+- `has_en_summary`: 英語での要約
+- `has_visual_info` / `visual_info_type`: 英作文中の視覚情報（表・グラフ・イラスト等）
+
+## データ管理
+- 全データ削除: `POST /api/passages/delete-all`
+- 年度・大学別削除: `DELETE /api/passages?year=&university=`
+- プロンプトやパーサー修正後は全削除→再アップロードが必要（`INSERT OR IGNORE`のため）
 
 ## ジャンル分類スキーム（10カテゴリ）
 科学・技術 / 医療・健康 / 心理・行動 / 教育・学習 / 環境・自然 / 社会・文化 / 経済・ビジネス / 歴史・哲学 / 言語・コミュニケーション / その他

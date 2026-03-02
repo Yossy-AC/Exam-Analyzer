@@ -46,10 +46,13 @@
                hx-trigger="change"
                class="inline-input" size="12">
     </td>
-    <td class="center">{{ '○' if p.has_jp_written else '' }}</td>
-    <td class="center">{{ '○' if p.has_en_written else '' }}</td>
-    <td class="center">{{ '○' if p.has_summary else '' }}</td>
+    <td class="center">{{ '○' if p.has_jp_translation else '' }}</td>
+    <td class="center">{{ '○' if p.has_jp_explanation else '' }}</td>
+    <td class="center">{{ '○' if p.has_en_explanation else '' }}</td>
+    <td class="center">{{ '○' if p.has_jp_summary else '' }}</td>
+    <td class="center">{{ '○' if p.has_en_summary else '' }}</td>
     <td>{{ p.comp_type if p.comp_type != 'none' else '' }}</td>
+    <td class="center">{{ p.visual_info_type if p.has_visual_info else '' }}</td>
     <td class="center">
         <input type="checkbox"
                {% if p.reviewed %}checked{% endif %}

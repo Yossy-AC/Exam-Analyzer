@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import COMP_TYPE_LIST, GENRE_MAIN_LIST, TEXT_STYLE_LIST, TEXT_TYPE_LIST
@@ -133,6 +133,19 @@ async def bulk_replace(request: Request):
     return await list_passages(request)
 
 
+@router.post("/api/passages/delete-all")
+async def delete_all_passages():
+    """全パッセージを削除する。"""
+    conn = get_connection()
+    try:
+        count = conn.execute("SELECT COUNT(*) as cnt FROM passages").fetchone()["cnt"]
+        conn.execute("DELETE FROM passages")
+        conn.commit()
+    finally:
+        conn.close()
+    return JSONResponse({"status": "deleted", "count": count})
+
+
 @router.delete("/api/passages/{passage_id}")
 async def delete_passage(passage_id: str):
     """パッセージを削除する。"""
@@ -142,7 +155,6 @@ async def delete_passage(passage_id: str):
         conn.commit()
     finally:
         conn.close()
-    # 削除成功時は 200 で空レスポンス返す（HTMX が要素を削除）
     return HTMLResponse("", status_code=200)
 
 
@@ -161,7 +173,4 @@ async def delete_passages_by_year_university(year: int = Query(None), university
         conn.commit()
     finally:
         conn.close()
-
-    # 削除成功時は JSON で削除件数を返す
-    from fastapi.responses import JSONResponse
     return JSONResponse({"status": "deleted", "year": year, "university": university})

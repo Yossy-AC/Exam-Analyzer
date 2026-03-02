@@ -136,18 +136,21 @@ def extract_text_section(block: str) -> str:
 
 
 def extract_questions_section(block: str) -> str:
-    """ブロックから ## Questions セクション以降を抽出する。"""
+    """ブロックから ## Questions セクション以降を抽出する。
+
+    ## Data セクションがある場合は設問情報に含める（視覚情報検出のため）。
+    """
     q_match = re.search(r"^## Questions\s*\n", block, re.MULTILINE)
     if q_match:
         return block[q_match.end():].strip()
 
-    # ## Questions がない場合は ## Instructions の内容を返す（設問情報として）
+    # ## Questions がない場合は ## Instructions + ## Data の内容を返す
     inst_match = re.search(r"^## Instructions\s*\n", block, re.MULTILINE)
     if inst_match:
         start = inst_match.end()
         text_match = re.search(r"^## Text\s*\n", block[start:], re.MULTILINE)
-        end = start + text_match.start() if text_match else start + 200
-        return block[start:min(end, start + 500)].strip()
+        end = start + text_match.start() if text_match else len(block)
+        return block[start:end].strip()
 
     return ""
 

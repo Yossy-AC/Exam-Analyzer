@@ -195,26 +195,29 @@
                     <button type="submit" class="btn btn-sm">一括置換</button>
                 </form>
 
-                <h4 style="margin-top:20px">一括削除</h4>
-                <form id="bulk-delete-form" style="display:flex; gap:10px; align-items:flex-end">
-                    <label>年度
-                        <select name="delete-year" id="delete-year">
-                            <option value="">-- 選択 --</option>
-                            {% for y in years %}
-                            <option value="{{ y }}">{{ y }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <label>大学
-                        <select name="delete-university" id="delete-university">
-                            <option value="">-- 選択 --</option>
-                            {% for u in universities %}
-                            <option value="{{ u }}">{{ u }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <button type="button" class="btn btn-sm" style="background-color:#e15759" onclick="bulkDeletePassages()">削除</button>
-                </form>
+                <h4 style="margin-top:20px">データ削除</h4>
+                <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap">
+                    <form id="bulk-delete-form" style="display:flex; gap:10px; align-items:flex-end">
+                        <label>年度
+                            <select name="delete-year" id="delete-year">
+                                <option value="">-- 選択 --</option>
+                                {% for y in years %}
+                                <option value="{{ y }}">{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>大学
+                            <select name="delete-university" id="delete-university">
+                                <option value="">-- 選択 --</option>
+                                {% for u in universities %}
+                                <option value="{{ u }}">{{ u }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <button type="button" class="btn btn-sm" style="background-color:#e15759;color:#fff" onclick="bulkDeletePassages()">選択削除</button>
+                    </form>
+                    <button type="button" class="btn btn-sm" style="background-color:#c44;color:#fff;margin-left:auto" onclick="deleteAllPassages()">全データ削除</button>
+                </div>
             </div>
             <div id="records-table"
                  hx-get="/api/passages"
@@ -225,18 +228,31 @@
 
 <script>
 // タブ切り替え
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const btn = document.querySelector(`.tab[data-tab="${name}"]`);
+    if (btn) btn.classList.add('active');
+    const panel = document.getElementById('tab-' + name);
+    if (panel) panel.classList.add('active');
+    location.hash = name;
 
-        if (tab.dataset.tab === 'reading') loadReadingStats();
-        if (tab.dataset.tab === 'composition') loadCompositionStats();
-        if (tab.dataset.tab === 'compare') loadQuestionFormat();
-    });
+    if (name === 'reading') loadReadingStats();
+    if (name === 'composition') loadCompositionStats();
+    if (name === 'compare') loadQuestionFormat();
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
+
+// リロード時にハッシュからタブを復元
+if (location.hash) {
+    const tab = location.hash.slice(1);
+    if (document.querySelector(`.tab[data-tab="${tab}"]`)) {
+        switchTab(tab);
+    }
+}
 
 // ドラッグ&ドロップ
 function handleDrop(e) {
@@ -417,6 +433,27 @@ async function bulkDeletePassages() {
         } else {
             const text = await response.text();
             alert('削除に失敗しました: ' + text);
+        }
+    } catch (error) {
+        alert('エラーが発生しました: ' + error.message);
+    }
+}
+
+// 全データ削除
+async function deleteAllPassages() {
+    if (!confirm('すべての解析データを削除します。\nこの操作は取り消せません。本当に削除しますか？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/passages/delete-all', { method: 'POST' });
+        if (response.ok) {
+            const data = await response.json();
+            alert(data.count + '件のデータを削除しました');
+            htmx.ajax('GET', '/api/passages', '#records-table');
+            htmx.ajax('GET', '/api/jobs', '#job-status');
+        } else {
+            alert('削除に失敗しました');
         }
     } catch (error) {
         alert('エラーが発生しました: ' + error.message);
