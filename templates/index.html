@@ -194,6 +194,27 @@
                     <input type="text" name="new_value" placeholder="変更後">
                     <button type="submit" class="btn btn-sm">一括置換</button>
                 </form>
+
+                <h4 style="margin-top:20px">一括削除</h4>
+                <form id="bulk-delete-form" style="display:flex; gap:10px; align-items:flex-end">
+                    <label>年度
+                        <select name="delete-year" id="delete-year">
+                            <option value="">-- 選択 --</option>
+                            {% for y in years %}
+                            <option value="{{ y }}">{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>大学
+                        <select name="delete-university" id="delete-university">
+                            <option value="">-- 選択 --</option>
+                            {% for u in universities %}
+                            <option value="{{ u }}">{{ u }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <button type="button" class="btn btn-sm" style="background-color:#e15759" onclick="bulkDeletePassages()">削除</button>
+                </form>
             </div>
             <div id="records-table"
                  hx-get="/api/passages"
@@ -366,6 +387,40 @@ async function loadQuestionFormat() {
         options: { indexAxis: 'y', responsive: true, scales: { x: { beginAtZero: true } },
             plugins: { title: { display: true, text: '設問形式の大学別比較' } } }
     });
+}
+
+// 一括削除
+async function bulkDeletePassages() {
+    const year = document.getElementById('delete-year').value;
+    const university = document.getElementById('delete-university').value;
+
+    if (!year || !university) {
+        alert('年度と大学を選択してください');
+        return;
+    }
+
+    if (!confirm(`${year}年度 ${university} のすべての問題を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/passages?year=${encodeURIComponent(year)}&university=${encodeURIComponent(university)}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert('削除しました');
+            // records-table を更新
+            htmx.ajax('GET', '/api/passages', '#records-table');
+            // job-status も更新（Upload タブの読み込み状態を同期）
+            htmx.ajax('GET', '/api/jobs', '#job-status');
+        } else {
+            const text = await response.text();
+            alert('削除に失敗しました: ' + text);
+        }
+    } catch (error) {
+        alert('エラーが発生しました: ' + error.message);
+    }
 }
 </script>
 {% endblock %}

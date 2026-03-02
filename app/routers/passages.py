@@ -144,3 +144,24 @@ async def delete_passage(passage_id: str):
         conn.close()
     # 削除成功時は 200 で空レスポンス返す（HTMX が要素を削除）
     return HTMLResponse("", status_code=200)
+
+
+@router.delete("/api/passages")
+async def delete_passages_by_year_university(year: int = Query(None), university: str = Query(None)):
+    """年度と大学で指定されたパッセージをまとめて削除する。"""
+    if not year or not university:
+        return HTMLResponse("年度と大学の両方を指定してください", status_code=400)
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            "DELETE FROM passages WHERE year = ? AND university = ?",
+            (year, university),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # 削除成功時は JSON で削除件数を返す
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"status": "deleted", "year": year, "university": university})
