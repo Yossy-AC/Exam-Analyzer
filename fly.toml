@@ -1,0 +1,12 @@
+app = "exam-text-classifier"
+primary_region = "nrt"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+
+[mounts]
+  source = "exam_data"
+  destination = "/data"

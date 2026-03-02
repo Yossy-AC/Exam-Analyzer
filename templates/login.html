@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - 入試問題分析システム</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <h1>入試問題分析システム</h1>
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+        <form action="/login" method="post">
+            <label>パスワード
+                <input type="password" name="password" autofocus required>
+            </label>
+            <button type="submit" class="btn btn-primary">ログイン</button>
+        </form>
+    </div>
+</body>
+</html>

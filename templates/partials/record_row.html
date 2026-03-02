@@ -1,0 +1,69 @@
+<tr id="row-{{ p.id }}">
+    <td class="id-cell">{{ p.id }}</td>
+    <td>{{ p.university }}</td>
+    <td>{{ p.year }}</td>
+    <td>{{ p.question_number }}-{{ p.passage_index }}</td>
+    <td>{{ p.text_type }}</td>
+    <td>
+        <select hx-put="/api/passages/{{ p.id }}"
+                hx-target="#row-{{ p.id }}"
+                hx-swap="outerHTML"
+                name="text_style"
+                class="inline-select">
+            <option value="">-</option>
+            {% for s in text_style_list %}
+            <option value="{{ s }}" {% if p.text_style == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td>{{ p.word_count or '' }}</td>
+    <td>
+        <select hx-put="/api/passages/{{ p.id }}"
+                hx-target="#row-{{ p.id }}"
+                hx-swap="outerHTML"
+                name="genre_main"
+                class="inline-select">
+            {% for g in genre_list %}
+            <option value="{{ g }}" {% if p.genre_main == g %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td>
+        <input type="text" value="{{ p.genre_sub or '' }}"
+               name="genre_sub"
+               hx-put="/api/passages/{{ p.id }}"
+               hx-target="#row-{{ p.id }}"
+               hx-swap="outerHTML"
+               hx-trigger="change"
+               class="inline-input" size="8">
+    </td>
+    <td>
+        <input type="text" value="{{ p.theme or '' }}"
+               name="theme"
+               hx-put="/api/passages/{{ p.id }}"
+               hx-target="#row-{{ p.id }}"
+               hx-swap="outerHTML"
+               hx-trigger="change"
+               class="inline-input" size="12">
+    </td>
+    <td class="center">{{ '○' if p.has_jp_written else '' }}</td>
+    <td class="center">{{ '○' if p.has_en_written else '' }}</td>
+    <td class="center">{{ '○' if p.has_summary else '' }}</td>
+    <td>{{ p.comp_type if p.comp_type != 'none' else '' }}</td>
+    <td class="center">
+        <input type="checkbox"
+               {% if p.reviewed %}checked{% endif %}
+               name="reviewed"
+               value="true"
+               hx-put="/api/passages/{{ p.id }}"
+               hx-target="#row-{{ p.id }}"
+               hx-swap="outerHTML">
+    </td>
+    <td>
+        <button class="btn btn-xs btn-danger"
+                hx-delete="/api/passages/{{ p.id }}"
+                hx-target="#row-{{ p.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="削除しますか？">×</button>
+    </td>
+</tr>

@@ -1,0 +1,34 @@
+{% if passages %}
+<table class="table table-matrix">
+    <thead>
+        <tr>
+            <th>大学</th>
+            <th>年度</th>
+            <th>問</th>
+            <th>種別</th>
+            <th>ジャンル</th>
+            <th>和訳</th>
+            <th>英訳</th>
+            <th>要約</th>
+            <th>作文種別</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in passages %}
+        <tr>
+            <td>{{ p.university }}</td>
+            <td>{{ p.year }}</td>
+            <td>{{ p.question_number }}-{{ p.passage_index }}</td>
+            <td>{{ p.text_type }}</td>
+            <td>{{ p.genre_main }}</td>
+            <td class="center">{{ '○' if p.has_jp_written else '×' }}</td>
+            <td class="center">{{ '○' if p.has_en_written else '×' }}</td>
+            <td class="center">{{ '○' if p.has_summary else '×' }}</td>
+            <td>{{ p.comp_type if p.comp_type != 'none' else '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">データがありません</p>
+{% endif %}

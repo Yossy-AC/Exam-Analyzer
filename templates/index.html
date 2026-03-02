@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+    <aside class="filters">
+        <h3>フィルター</h3>
+        <form id="filter-form">
+            <label>年度
+                <select name="year" id="filter-year">
+                    <option value="">全て</option>
+                    {% for y in years %}
+                    <option value="{{ y }}">{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>大学
+                <select name="university" id="filter-university">
+                    <option value="">全て</option>
+                    {% for u in universities %}
+                    <option value="{{ u }}">{{ u }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>ジャンル
+                <select name="genre_main" id="filter-genre">
+                    <option value="">全て</option>
+                    {% for g in genre_list %}
+                    <option value="{{ g }}">{{ g }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>種別
+                <select name="text_type" id="filter-type">
+                    <option value="">全て</option>
+                    {% for t in text_type_list %}
+                    <option value="{{ t }}">{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="button" class="btn" onclick="applyFilters()">絞込</button>
+        </form>
+        <div class="stats">
+            <p>全{{ total }}件 / レビュー済{{ reviewed }}件</p>
+        </div>
+    </aside>
+
+    <section class="content">
+        <div class="tabs">
+            <button class="tab active" data-tab="upload">アップロード</button>
+            <button class="tab" data-tab="trend">トレンド</button>
+            <button class="tab" data-tab="compare">大学別</button>
+            <button class="tab" data-tab="matrix">構成表</button>
+            <button class="tab" data-tab="records">一覧</button>
+        </div>
+
+        <!-- アップロードタブ -->
+        <div class="tab-panel active" id="tab-upload">
+            <form id="upload-form"
+                  hx-post="/api/upload"
+                  hx-target="#upload-results"
+                  hx-encoding="multipart/form-data">
+                <div id="dropzone"
+                     ondragover="event.preventDefault(); this.classList.add('dragover')"
+                     ondragleave="this.classList.remove('dragover')"
+                     ondrop="handleDrop(event)">
+                    <p>MDファイルをここにドラッグ&ドロップ</p>
+                    <p>または</p>
+                    <input type="file" name="files" multiple accept=".md" id="file-input">
+                </div>
+                <button type="submit" class="btn btn-primary">解析開始</button>
+            </form>
+            <div id="upload-results"></div>
+            <div id="job-status"
+                 hx-get="/api/jobs"
+                 hx-trigger="load, every 5s"
+                 hx-target="#job-status"></div>
+        </div>
+
+        <!-- トレンドタブ -->
+        <div class="tab-panel" id="tab-trend">
+            <canvas id="genre-trend-chart" height="400"></canvas>
+        </div>
+
+        <!-- 大学別タブ -->
+        <div class="tab-panel" id="tab-compare">
+            <canvas id="university-compare-chart" height="400"></canvas>
+        </div>
+
+        <!-- 構成表タブ -->
+        <div class="tab-panel" id="tab-matrix">
+            <div id="matrix-content"
+                 hx-get="/api/stats/question-matrix"
+                 hx-trigger="revealed"></div>
+        </div>
+
+        <!-- 一覧タブ -->
+        <div class="tab-panel" id="tab-records">
+            <div class="bulk-actions">
+                <h4>一括置換</h4>
+                <form hx-post="/api/passages/bulk-replace" hx-target="#records-table">
+                    <select name="field">
+                        <option value="genre_main">ジャンル</option>
+                        <option value="genre_sub">サブジャンル</option>
+                        <option value="text_style">テキスト種別</option>
+                    </select>
+                    <input type="text" name="old_value" placeholder="変更前">
+                    <input type="text" name="new_value" placeholder="変更後">
+                    <button type="submit" class="btn btn-sm">一括置換</button>
+                </form>
+            </div>
+            <div id="records-table"
+                 hx-get="/api/passages"
+                 hx-trigger="revealed"></div>
+        </div>
+    </section>
+</div>
+
+<script>
+// タブ切り替え
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        const panel = document.getElementById('tab-' + tab.dataset.tab);
+        panel.classList.add('active');
+
+        // グラフタブの場合、データを取得して描画
+        if (tab.dataset.tab === 'trend') loadGenreTrend();
+        if (tab.dataset.tab === 'compare') loadUniversityCompare();
+    });
+});
+
+// ドラッグ&ドロップ
+function handleDrop(e) {
+    e.preventDefault();
+    e.target.classList.remove('dragover');
+    const input = document.getElementById('file-input');
+    input.files = e.dataTransfer.files;
+}
+
+// フィルター適用
+function applyFilters() {
+    const params = new URLSearchParams();
+    ['year', 'university', 'genre_main', 'text_type'].forEach(key => {
+        const el = document.getElementById('filter-' + key.replace('_', '-').replace('genre-main', 'genre').replace('text-type', 'type'));
+        if (el && el.value) params.set(key, el.value);
+    });
+    const qs = params.toString();
+
+    // 一覧タブを更新
+    htmx.ajax('GET', '/api/passages?' + qs, '#records-table');
+    // 構成表を更新
+    htmx.ajax('GET', '/api/stats/question-matrix?' + qs, '#matrix-content');
+}
+
+// Chart.js グラフ
+let trendChart = null;
+let compareChart = null;
+
+async function loadGenreTrend() {
+    const params = new URLSearchParams();
+    const yearEl = document.getElementById('filter-year');
+    if (yearEl && yearEl.value) params.set('year_from', yearEl.value);
+
+    const res = await fetch('/api/stats/genre-trend?' + params.toString());
+    const data = await res.json();
+
+    if (trendChart) trendChart.destroy();
+    const ctx = document.getElementById('genre-trend-chart').getContext('2d');
+    trendChart = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+            responsive: true,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            },
+            plugins: {
+                title: { display: true, text: 'ジャンル別トレンド' }
+            }
+        }
+    });
+}
+
+async function loadUniversityCompare() {
+    const params = new URLSearchParams();
+    const yearEl = document.getElementById('filter-year');
+    if (yearEl && yearEl.value) params.set('year', yearEl.value);
+
+    const res = await fetch('/api/stats/university-compare?' + params.toString());
+    const data = await res.json();
+
+    if (compareChart) compareChart.destroy();
+    const ctx = document.getElementById('university-compare-chart').getContext('2d');
+    compareChart = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            scales: {
+                x: { stacked: true, beginAtZero: true },
+                y: { stacked: true }
+            },
+            plugins: {
+                title: { display: true, text: '大学別問題構成' }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% if passages %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>大学</th>
+            <th>年度</th>
+            <th>問番号</th>
+            <th>種別</th>
+            <th>文体</th>
+            <th>語数</th>
+            <th>ジャンル</th>
+            <th>サブ</th>
+            <th>テーマ</th>
+            <th>和訳</th>
+            <th>英訳</th>
+            <th>要約</th>
+            <th>作文</th>
+            <th>済</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in passages %}
+        {% include "partials/record_row.html" %}
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">データがありません。MDファイルをアップロードしてください。</p>
+{% endif %}

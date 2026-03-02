@@ -1,0 +1,32 @@
+{% if jobs %}
+<table class="table table-sm">
+    <thead>
+        <tr>
+            <th>ファイル</th>
+            <th>状態</th>
+            <th>抽出数</th>
+            <th>エラー</th>
+            <th>開始</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for job in jobs %}
+        <tr class="{% if job.status == 'completed' %}row-success{% elif job.status == 'error' %}row-error{% elif job.status == 'processing' %}row-processing{% endif %}">
+            <td>{{ job.filename }}</td>
+            <td>
+                {% if job.status == 'pending' %}待機中
+                {% elif job.status == 'processing' %}処理中...
+                {% elif job.status == 'completed' %}完了
+                {% elif job.status == 'error' %}エラー
+                {% endif %}
+            </td>
+            <td>{{ job.passages_created }}</td>
+            <td>{{ job.error_message or '' }}</td>
+            <td>{{ job.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">解析ジョブはありません</p>
+{% endif %}
