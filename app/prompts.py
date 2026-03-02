@@ -50,7 +50,7 @@ USER_PROMPT_QUESTIONS = """以下は{university} {year}年度の入試問題 Que
   "has_en_explanation": <true/false: 問いに対して英語で説明・記述して答えるタスク>,
   "has_jp_summary": <true/false: 英文を日本語で要約するタスク>,
   "has_en_summary": <true/false: 英文を英語で要約するタスク>,
-  "has_visual_info": <true/false: 英作文問題に図表・グラフ・イラスト等の視覚情報が含まれるか>,
+  "has_visual_info": <true/false: 英作文問題に図表・グラフ・イラスト・Markdown表等の視覚情報が含まれるか>,
   "visual_info_type": "<グラフ | 表 | イラスト | 写真 | 地図 | なし>"
 }}
 
@@ -61,5 +61,5 @@ USER_PROMPT_QUESTIONS = """以下は{university} {year}年度の入試問題 Que
 - has_jp_summary: 「本文の内容を日本語で要約しなさい」「要旨をまとめよ」等。全体または段落の要約
 - has_en_summary: 「要約を英語で書きなさい」「英語で要旨をまとめよ」等。英語での要約
 - comp_type: 和文英訳（日本語→英語の翻訳）/ 自由英作文（テーマを与えて自由に英語で書かせる）/ none（いずれでもない）
-- has_visual_info: 英作文・自由英作文の問題文中にグラフ・表・イラスト・写真・地図等の視覚素材が提示されているか
-- visual_info_type: 視覚情報がある場合はその種別を1つ選択。ない場合は「なし」"""
+- has_visual_info: 英作文・自由英作文の問題文中に、| で囲った表、グラフ、イラスト、写真、地図等の視覚素材が提示されているか。Markdown形式の表（| ... | ... |）も視覚情報に含める
+- visual_info_type: 視覚情報がある場合はその種別を1つ選択（Markdown表は「表」）。ない場合は「なし」"""
