@@ -41,14 +41,25 @@ USER_PROMPT_QUESTIONS = """以下は{university} {year}年度の入試問題 Que
 
 以下のJSONを返してください:
 {{
-  "has_jp_written": <true/false: 日本語で記述する和訳問題があるか>,
-  "has_en_written": <true/false: 英語で記述する英訳問題があるか>,
-  "has_summary": <true/false: 要約問題があるか>,
-  "comp_type": "<none | 和文英訳 | 自由英作文>"
+  "has_jp_written": <true/false: 日本語で記述する問題があるか（旧互換性フィールド）>,
+  "has_en_written": <true/false: 英語で記述する問題があるか（旧互換性フィールド）>,
+  "has_summary": <true/false: 要約問題があるか（旧互換性フィールド）>,
+  "comp_type": "<none | 和文英訳 | 自由英作文>",
+  "has_jp_translation": <true/false: 英文の一部を日本語に訳すタスク>,
+  "has_jp_explanation": <true/false: 問いに対して日本語で説明・記述して答えるタスク>,
+  "has_en_explanation": <true/false: 問いに対して英語で説明・記述して答えるタスク>,
+  "has_jp_summary": <true/false: 英文を日本語で要約するタスク>,
+  "has_en_summary": <true/false: 英文を英語で要約するタスク>,
+  "has_visual_info": <true/false: 英作文問題に図表・グラフ・イラスト等の視覚情報が含まれるか>,
+  "visual_info_type": "<グラフ | 表 | イラスト | 写真 | 地図 | なし>"
 }}
 
 判定基準:
-- has_jp_written: 「和訳しなさい」「日本語で説明しなさい」「日本語で要約しなさい」等
-- has_en_written: 「英訳せよ」「英語で述べよ」「英語で書きなさい」等
-- has_summary: 「要約せよ」「要旨をまとめよ」等
-- comp_type: 和文英訳（日本語→英語の翻訳）/ 自由英作文（テーマを与えて自由に英語で書かせる）/ none（いずれでもない）"""
+- has_jp_translation: 「～を日本語に訳しなさい」「和訳せよ」等。英文の部分訳に限定
+- has_jp_explanation: 「～について日本語で説明しなさい」「述べよ」等。設問への記述的な回答
+- has_en_explanation: 「～についてEnglishで説明しなさい」「英語で述べよ」等。設問への英文記述回答
+- has_jp_summary: 「本文の内容を日本語で要約しなさい」「要旨をまとめよ」等。全体または段落の要約
+- has_en_summary: 「要約を英語で書きなさい」「英語で要旨をまとめよ」等。英語での要約
+- comp_type: 和文英訳（日本語→英語の翻訳）/ 自由英作文（テーマを与えて自由に英語で書かせる）/ none（いずれでもない）
+- has_visual_info: 英作文・自由英作文の問題文中にグラフ・表・イラスト・写真・地図等の視覚素材が提示されているか
+- visual_info_type: 視覚情報がある場合はその種別を1つ選択。ない場合は「なし」"""

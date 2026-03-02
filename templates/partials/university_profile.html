@@ -1,0 +1,98 @@
+{% if empty %}
+<p class="muted">大学を選択してください</p>
+{% else %}
+<div class="profile-card">
+    <h3>{{ university }} — 出題傾向サマリー（全{{ total }}問）</h3>
+
+    <!-- 上段：ジャンル円グラフ + 設問形式円グラフ -->
+    <div class="profile-grid-two">
+        <div class="profile-section">
+            <h4>長文ジャンル分布</h4>
+            <canvas id="profile-genre-chart" height="200"></canvas>
+        </div>
+        <div class="profile-section">
+            <h4>設問形式分布</h4>
+            <canvas id="profile-qformat-chart" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- 中段：平均語数 -->
+    <div class="profile-stat">
+        <span>平均語数：</span>
+        <span class="stat-number">{{ avg_words }} 語</span>
+    </div>
+
+    <!-- 下段：ジャンル別テーマ一覧表 -->
+    {% if genre_details %}
+    <div class="profile-section" style="margin-top:16px">
+        <h4>長文ジャンル別テーマ</h4>
+        <table class="table table-compact">
+            <thead>
+                <tr>
+                    <th>ジャンル</th>
+                    <th>件数</th>
+                    <th>サブジャンル</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for genre, details in genre_details.items() %}
+                <tr>
+                    <td><strong>{{ genre }}</strong></td>
+                    <td class="center">{{ details.count }}</td>
+                    <td>
+                        {% if details.subgenres %}
+                        {% for subg, count in details.subgenres.items() %}
+                        <span class="badge-small">{{ subg }} ({{ count }})</span>
+                        {% endfor %}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    const genreCtx = document.getElementById('profile-genre-chart').getContext('2d');
+    new Chart(genreCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ genre_chart.labels | tojson }},
+            datasets: [{
+                data: {{ genre_chart.data | tojson }},
+                backgroundColor: {{ genre_chart.colors | tojson }},
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    const qfmtCtx = document.getElementById('profile-qformat-chart').getContext('2d');
+    new Chart(qfmtCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ qformat_chart.labels | tojson }},
+            datasets: [{
+                data: {{ qformat_chart.data | tojson }},
+                backgroundColor: {{ qformat_chart.colors | tojson }},
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 10 } } }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}

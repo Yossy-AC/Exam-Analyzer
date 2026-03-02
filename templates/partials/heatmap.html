@@ -1,0 +1,36 @@
+{% if heatmap_data %}
+<table class="table heatmap-table">
+    <thead>
+        <tr>
+            <th>大学</th>
+            {% for g in genres %}
+            <th class="heatmap-header" title="{{ g }}">{{ g[:4] }}</th>
+            {% endfor %}
+            <th>合計</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for uni, counts in heatmap_data.items() %}
+        <tr>
+            <td class="heatmap-uni">{{ uni }}</td>
+            {% for g in genres %}
+            {% set c = counts.get(g, 0) %}
+            {% if max_count > 0 %}
+            {% set lightness = 95 - (c / max_count * 55) %}
+            {% else %}
+            {% set lightness = 95 %}
+            {% endif %}
+            <td class="heatmap-cell"
+                style="background-color: hsl(210, 80%, {{ lightness }}%); {% if lightness < 60 %}color:#fff{% endif %}"
+                title="{{ uni }} / {{ g }}: {{ c }}件">
+                {{ c if c else '' }}
+            </td>
+            {% endfor %}
+            <td class="heatmap-total">{{ counts.values()|sum }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">データがありません</p>
+{% endif %}

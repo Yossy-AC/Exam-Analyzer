@@ -140,8 +140,12 @@ async def reading_stats(year: int = None, university: str = ""):
 
         format_row = conn.execute(
             f"""SELECT
-                SUM(has_jp_written) as jp, SUM(has_en_written) as en,
-                SUM(has_summary) as summary, COUNT(*) as total
+                SUM(has_jp_translation) as jp_translation,
+                SUM(has_jp_explanation) as jp_explanation,
+                SUM(has_en_explanation) as en_explanation,
+                SUM(has_jp_summary) as jp_summary,
+                SUM(has_en_summary) as en_summary,
+                COUNT(*) as total
             FROM passages {where}""",
             params,
         ).fetchone()
@@ -176,8 +180,14 @@ async def reading_stats(year: int = None, university: str = ""):
             "data": [r["count"] for r in style_rows],
         },
         "format": {
-            "labels": ["和訳あり", "英訳あり", "要約あり"],
-            "data": [format_row["jp"] or 0, format_row["en"] or 0, format_row["summary"] or 0],
+            "labels": ["和訳", "説明（日本語）", "説明（英語）", "要約（日本語）", "要約（英語）"],
+            "data": [
+                format_row["jp_translation"] or 0,
+                format_row["jp_explanation"] or 0,
+                format_row["en_explanation"] or 0,
+                format_row["jp_summary"] or 0,
+                format_row["en_summary"] or 0,
+            ],
             "total": format_row["total"] or 0,
         },
         "subgenres": subgenre_detail,

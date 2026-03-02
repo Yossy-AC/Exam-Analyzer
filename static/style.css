@@ -220,3 +220,106 @@ header nav { display: flex; gap: 8px; align-items: center; }
 
 /* Chart containers */
 canvas { max-height: 500px; }
+
+/* Tab controls (大学選択等) */
+.tab-controls {
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: #f1f3f5;
+    border-radius: 4px;
+}
+.tab-controls label { font-size: 13px; }
+.tab-controls select {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 13px;
+    margin-left: 4px;
+}
+
+/* Chart grid (2列レイアウト) */
+.chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+}
+.chart-box h4 { font-size: 13px; margin-bottom: 8px; color: var(--text); }
+
+/* University profile card */
+.profile-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+}
+.profile-card h3 { font-size: 16px; margin-bottom: 16px; }
+.profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.profile-grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.profile-section h4 { font-size: 13px; margin-bottom: 8px; color: var(--muted); }
+.profile-stat { margin: 12px 0; font-size: 14px; }
+.stat-number { font-size: 24px; font-weight: 700; color: var(--primary); }
+
+/* Compact table */
+.table-compact { font-size: 11px; }
+.table-compact th, .table-compact td { padding: 4px 6px; }
+
+/* Badge small */
+.badge-small {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 1px 2px;
+    border-radius: 8px;
+    font-size: 10px;
+    background: #e7f1ff;
+    color: #0d6efd;
+}
+
+/* Badges */
+.badge-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+}
+.badge-blue { background: #4e79a7; }
+.badge-orange { background: #f28e2b; }
+.badge-red { background: #e15759; }
+.badge-teal { background: #76b7b2; }
+.badge-green { background: #59a14f; }
+
+/* Theme list */
+.theme-list {
+    list-style: none;
+    padding: 0;
+}
+.theme-list li {
+    padding: 4px 0;
+    border-bottom: 1px solid #f1f3f5;
+    font-size: 13px;
+}
+
+/* Heatmap */
+.heatmap-table th, .heatmap-table td { text-align: center; min-width: 48px; font-size: 12px; }
+.heatmap-header { font-size: 11px; }
+.heatmap-uni { font-weight: 600; text-align: left !important; white-space: nowrap; }
+.heatmap-cell { font-weight: 600; font-size: 13px; transition: opacity 0.2s; }
+.heatmap-cell:hover { opacity: 0.8; outline: 2px solid var(--primary); }
+.heatmap-total { font-weight: 700; background: #f1f3f5 !important; }
+
+/* Compare section */
+.compare-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+}
+.compare-section h4 { font-size: 14px; margin-bottom: 12px; }

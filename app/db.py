@@ -36,6 +36,15 @@ CREATE TABLE IF NOT EXISTS passages (
     has_summary BOOLEAN DEFAULT 0,
     comp_type TEXT DEFAULT 'none',
 
+    has_jp_translation BOOLEAN DEFAULT 0,
+    has_jp_explanation BOOLEAN DEFAULT 0,
+    has_en_explanation BOOLEAN DEFAULT 0,
+    has_jp_summary BOOLEAN DEFAULT 0,
+    has_en_summary BOOLEAN DEFAULT 0,
+
+    has_visual_info BOOLEAN DEFAULT 0,
+    visual_info_type TEXT DEFAULT '',
+
     reviewed BOOLEAN DEFAULT 0,
     notes TEXT DEFAULT '',
     extracted_at TEXT DEFAULT (datetime('now')),
@@ -87,10 +96,29 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _migrate_db(conn: sqlite3.Connection) -> None:
+    """既存DBに不足カラムを追加する。"""
+    cursor = conn.execute("PRAGMA table_info(passages)")
+    existing = {row[1] for row in cursor.fetchall()}
+    migrations = [
+        ("has_visual_info", "BOOLEAN DEFAULT 0"),
+        ("visual_info_type", "TEXT DEFAULT ''"),
+        ("has_jp_translation", "BOOLEAN DEFAULT 0"),
+        ("has_jp_explanation", "BOOLEAN DEFAULT 0"),
+        ("has_en_explanation", "BOOLEAN DEFAULT 0"),
+        ("has_jp_summary", "BOOLEAN DEFAULT 0"),
+        ("has_en_summary", "BOOLEAN DEFAULT 0"),
+    ]
+    for col, typedef in migrations:
+        if col not in existing:
+            conn.execute(f"ALTER TABLE passages ADD COLUMN {col} {typedef}")
+
+
 def init_db() -> None:
     conn = get_connection()
     try:
         conn.executescript(SCHEMA_SQL)
+        _migrate_db(conn)
         for name, is_kyutei, is_national, is_private in SEED_UNIVERSITIES:
             conn.execute(
                 "INSERT OR IGNORE INTO universities (name, is_kyutei, is_national, is_private) VALUES (?, ?, ?, ?)",

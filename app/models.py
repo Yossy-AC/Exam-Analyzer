@@ -28,6 +28,13 @@ class PassageCreate(PassageBase):
     has_en_written: bool = False
     has_summary: bool = False
     comp_type: str = "none"
+    has_jp_translation: bool = False
+    has_jp_explanation: bool = False
+    has_en_explanation: bool = False
+    has_jp_summary: bool = False
+    has_en_summary: bool = False
+    has_visual_info: bool = False
+    visual_info_type: str = ""
     reviewed: bool = False
     notes: str = ""
 
@@ -42,6 +49,13 @@ class PassageUpdate(BaseModel):
     has_en_written: Optional[bool] = None
     has_summary: Optional[bool] = None
     comp_type: Optional[str] = None
+    has_jp_translation: Optional[bool] = None
+    has_jp_explanation: Optional[bool] = None
+    has_en_explanation: Optional[bool] = None
+    has_jp_summary: Optional[bool] = None
+    has_en_summary: Optional[bool] = None
+    has_visual_info: Optional[bool] = None
+    visual_info_type: Optional[str] = None
     reviewed: Optional[bool] = None
     notes: Optional[str] = None
 
@@ -63,6 +77,13 @@ class QuestionAnalysisResult(BaseModel):
     has_en_written: bool = False
     has_summary: bool = False
     comp_type: str = "none"
+    has_jp_translation: bool = False
+    has_jp_explanation: bool = False
+    has_en_explanation: bool = False
+    has_jp_summary: bool = False
+    has_en_summary: bool = False
+    has_visual_info: bool = False
+    visual_info_type: str = ""
 
 
 class ParsedQuestion(BaseModel):

@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "data" / "exam.db"))
 INPUT_MD_DIR = str(BASE_DIR / "data" / "input_md")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = "claude-sonnet-4-20250514"
+CLAUDE_MODEL = "claude-sonnet-4-6"
 CLAUDE_MAX_TOKENS = 300
 CLAUDE_TEMPERATURE = 0
 CONCURRENT_LIMIT = 5
@@ -42,3 +42,5 @@ TEXT_STYLE_LIST = [
 ]
 
 COMP_TYPE_LIST = ["none", "和文英訳", "自由英作文"]
+
+VISUAL_INFO_TYPE_LIST = ["なし", "グラフ", "表", "イラスト", "写真", "地図"]

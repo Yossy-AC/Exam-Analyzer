@@ -46,13 +46,15 @@
     <section class="content">
         <div class="tabs">
             <button class="tab active" data-tab="upload">アップロード</button>
-            <button class="tab" data-tab="trend">トレンド</button>
-            <button class="tab" data-tab="compare">大学別</button>
-            <button class="tab" data-tab="matrix">構成表</button>
+            <button class="tab" data-tab="uni-profile">大学別傾向</button>
+            <button class="tab" data-tab="reading">長文統計</button>
+            <button class="tab" data-tab="composition">英作文統計</button>
+            <button class="tab" data-tab="yearly">経年変化</button>
+            <button class="tab" data-tab="compare">大学間比較</button>
             <button class="tab" data-tab="records">一覧</button>
         </div>
 
-        <!-- アップロードタブ -->
+        <!-- タブ1: アップロード -->
         <div class="tab-panel active" id="tab-upload">
             <form id="upload-form"
                   hx-post="/api/upload"
@@ -75,24 +77,114 @@
                  hx-target="#job-status"></div>
         </div>
 
-        <!-- トレンドタブ -->
-        <div class="tab-panel" id="tab-trend">
-            <canvas id="genre-trend-chart" height="400"></canvas>
+        <!-- タブ2: 大学別傾向 -->
+        <div class="tab-panel" id="tab-uni-profile">
+            <div class="tab-controls">
+                <label>大学を選択:
+                    <select id="profile-university" onchange="loadUniversityProfile()">
+                        <option value="">-- 選択 --</option>
+                        {% for u in universities %}
+                        <option value="{{ u }}">{{ u }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+            <div id="profile-content">
+                <p class="muted">大学を選択してください</p>
+            </div>
         </div>
 
-        <!-- 大学別タブ -->
+        <!-- タブ3: 長文統計 -->
+        <div class="tab-panel" id="tab-reading">
+            <div class="chart-grid">
+                <div class="chart-box">
+                    <h4>長文ジャンル分布</h4>
+                    <canvas id="reading-genre-chart" height="240"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h4>長文文体分布</h4>
+                    <canvas id="reading-style-chart" height="240"></canvas>
+                </div>
+            </div>
+            <div class="chart-grid" style="margin-top:16px">
+                <div class="chart-box">
+                    <h4>記述問題分類</h4>
+                    <canvas id="reading-format-chart" height="200"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h4>ジャンル別サブジャンル詳細</h4>
+                    <div id="reading-subgenres"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ4: 英作文統計 -->
+        <div class="tab-panel" id="tab-composition">
+            <div class="chart-grid">
+                <div class="chart-box">
+                    <h4>英作文出題有無</h4>
+                    <canvas id="comp-presence-chart" height="250"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h4>英作文の形式</h4>
+                    <canvas id="comp-type-chart" height="250"></canvas>
+                </div>
+            </div>
+            <div class="chart-grid" style="margin-top:16px">
+                <div class="chart-box">
+                    <h4>視覚情報の有無（英作文内）</h4>
+                    <canvas id="comp-visual-chart" height="250"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h4>視覚情報の種別</h4>
+                    <canvas id="comp-visual-type-chart" height="250"></canvas>
+                </div>
+            </div>
+            <div style="margin-top:16px">
+                <h4>大学別英作文一覧</h4>
+                <div id="comp-details-table"></div>
+            </div>
+        </div>
+
+        <!-- タブ5: 経年変化 -->
+        <div class="tab-panel" id="tab-yearly">
+            <div class="tab-controls">
+                <label>大学を選択:
+                    <select id="yearly-university" onchange="loadYearlyTrend()">
+                        <option value="">-- 選択 --</option>
+                        {% for u in universities %}
+                        <option value="{{ u }}">{{ u }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+            <div class="chart-grid">
+                <div class="chart-box">
+                    <h4>ジャンル推移</h4>
+                    <canvas id="yearly-genre-chart" height="300"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h4>設問形式推移</h4>
+                    <canvas id="yearly-format-chart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ6: 大学間比較 -->
         <div class="tab-panel" id="tab-compare">
-            <canvas id="university-compare-chart" height="400"></canvas>
+            <div class="compare-section">
+                <h4>大学 × ジャンル ヒートマップ</h4>
+                <div id="heatmap-content"
+                     hx-get="/api/stats/heatmap"
+                     hx-trigger="revealed"></div>
+            </div>
+            <div class="compare-section" style="margin-top:24px">
+                <h4>設問形式の大学別比較</h4>
+                <canvas id="qformat-chart" height="400"></canvas>
+            </div>
         </div>
 
-        <!-- 構成表タブ -->
-        <div class="tab-panel" id="tab-matrix">
-            <div id="matrix-content"
-                 hx-get="/api/stats/question-matrix"
-                 hx-trigger="revealed"></div>
-        </div>
-
-        <!-- 一覧タブ -->
+        <!-- タブ7: 一覧 -->
         <div class="tab-panel" id="tab-records">
             <div class="bulk-actions">
                 <h4>一括置換</h4>
@@ -121,12 +213,11 @@ document.querySelectorAll('.tab').forEach(tab => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
-        const panel = document.getElementById('tab-' + tab.dataset.tab);
-        panel.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
 
-        // グラフタブの場合、データを取得して描画
-        if (tab.dataset.tab === 'trend') loadGenreTrend();
-        if (tab.dataset.tab === 'compare') loadUniversityCompare();
+        if (tab.dataset.tab === 'reading') loadReadingStats();
+        if (tab.dataset.tab === 'composition') loadCompositionStats();
+        if (tab.dataset.tab === 'compare') loadQuestionFormat();
     });
 });
 
@@ -134,79 +225,162 @@ document.querySelectorAll('.tab').forEach(tab => {
 function handleDrop(e) {
     e.preventDefault();
     e.target.classList.remove('dragover');
-    const input = document.getElementById('file-input');
-    input.files = e.dataTransfer.files;
+    document.getElementById('file-input').files = e.dataTransfer.files;
 }
 
 // フィルター適用
 function applyFilters() {
     const params = new URLSearchParams();
-    ['year', 'university', 'genre_main', 'text_type'].forEach(key => {
-        const el = document.getElementById('filter-' + key.replace('_', '-').replace('genre-main', 'genre').replace('text-type', 'type'));
+    const map = {year: 'filter-year', university: 'filter-university', genre_main: 'filter-genre', text_type: 'filter-type'};
+    for (const [key, id] of Object.entries(map)) {
+        const el = document.getElementById(id);
         if (el && el.value) params.set(key, el.value);
-    });
+    }
     const qs = params.toString();
-
-    // 一覧タブを更新
     htmx.ajax('GET', '/api/passages?' + qs, '#records-table');
-    // 構成表を更新
-    htmx.ajax('GET', '/api/stats/question-matrix?' + qs, '#matrix-content');
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab) {
+        if (activeTab.dataset.tab === 'reading') loadReadingStats();
+        if (activeTab.dataset.tab === 'composition') loadCompositionStats();
+        if (activeTab.dataset.tab === 'compare') {
+            htmx.ajax('GET', '/api/stats/heatmap?' + qs, '#heatmap-content');
+            loadQuestionFormat();
+        }
+    }
 }
 
-// Chart.js グラフ
-let trendChart = null;
-let compareChart = null;
+// Chart.js ユーティリティ
+const charts = {};
+function createChart(id, config) {
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(document.getElementById(id).getContext('2d'), config);
+}
 
-async function loadGenreTrend() {
+const PALETTE = ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'];
+function palette(n) { return Array.from({length: n}, (_, i) => PALETTE[i % PALETTE.length]); }
+
+function doughnutConfig(labels, data, colors) {
+    return {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: colors || palette(labels.length) }] },
+        options: { responsive: true, plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
+    };
+}
+
+// ---------- タブ2: 大学別傾向 ----------
+function loadUniversityProfile() {
+    const uni = document.getElementById('profile-university').value;
+    const year = document.getElementById('filter-year').value;
+    let url = '/api/stats/university-profile?university=' + encodeURIComponent(uni);
+    if (year) url += '&year=' + year;
+    htmx.ajax('GET', url, '#profile-content');
+}
+
+// ---------- タブ3: 長文統計 ----------
+async function loadReadingStats() {
     const params = new URLSearchParams();
-    const yearEl = document.getElementById('filter-year');
-    if (yearEl && yearEl.value) params.set('year_from', yearEl.value);
+    const year = document.getElementById('filter-year').value;
+    const uni = document.getElementById('filter-university').value;
+    if (year) params.set('year', year);
+    if (uni) params.set('university', uni);
 
-    const res = await fetch('/api/stats/genre-trend?' + params.toString());
+    const res = await fetch('/api/stats/reading-stats?' + params.toString());
     const data = await res.json();
 
-    if (trendChart) trendChart.destroy();
-    const ctx = document.getElementById('genre-trend-chart').getContext('2d');
-    trendChart = new Chart(ctx, {
+    createChart('reading-genre-chart', doughnutConfig(data.genre.labels, data.genre.data, data.genre.colors));
+    createChart('reading-style-chart', doughnutConfig(data.style.labels, data.style.data));
+    createChart('reading-format-chart', {
         type: 'bar',
-        data: data,
-        options: {
-            responsive: true,
-            scales: {
-                x: { stacked: true },
-                y: { stacked: true, beginAtZero: true }
-            },
-            plugins: {
-                title: { display: true, text: 'ジャンル別トレンド' }
+        data: { labels: data.format.labels, datasets: [{ data: data.format.data, backgroundColor: ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f'] }] },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+    });
+
+    // ジャンル別サブジャンル詳細表
+    const subgenreEl = document.getElementById('reading-subgenres');
+    if (data.subgenres && Object.keys(data.subgenres).length > 0) {
+        let html = '<table class="table table-compact"><thead><tr><th>ジャンル</th><th>サブジャンル</th><th>件数</th></tr></thead><tbody>';
+        for (const [genre, subs] of Object.entries(data.subgenres)) {
+            for (let i = 0; i < subs.length; i++) {
+                html += '<tr>' + (i === 0 ? '<td rowspan="' + subs.length + '"><strong>' + genre + '</strong></td>' : '') +
+                    '<td>' + subs[i].subgenre + '</td>' +
+                    '<td class="center">' + subs[i].count + '</td>' +
+                    '</tr>';
             }
         }
+        html += '</tbody></table>';
+        subgenreEl.innerHTML = html;
+    } else {
+        subgenreEl.innerHTML = '<p class="muted">サブジャンルデータなし</p>';
+    }
+}
+
+// ---------- タブ4: 英作文統計 ----------
+async function loadCompositionStats() {
+    const params = new URLSearchParams();
+    const year = document.getElementById('filter-year').value;
+    const uni = document.getElementById('filter-university').value;
+    if (year) params.set('year', year);
+    if (uni) params.set('university', uni);
+
+    const res = await fetch('/api/stats/composition-stats?' + params.toString());
+    const data = await res.json();
+
+    createChart('comp-presence-chart', doughnutConfig(data.presence.labels, data.presence.data, ['#59a14f','#dee2e6']));
+    createChart('comp-type-chart', doughnutConfig(data.type.labels, data.type.data, ['#76b7b2','#59a14f','#edc948']));
+    createChart('comp-visual-chart', doughnutConfig(data.visual.labels, data.visual.data, ['#f28e2b','#dee2e6']));
+
+    if (data.visual_type.labels.length) {
+        createChart('comp-visual-type-chart', doughnutConfig(data.visual_type.labels, data.visual_type.data));
+    }
+
+    const el = document.getElementById('comp-details-table');
+    if (data.details.length) {
+        let html = '<table class="table"><thead><tr><th>大学</th><th>年度</th><th>問</th><th>形式</th><th>視覚情報</th><th>種別</th></tr></thead><tbody>';
+        for (const d of data.details) {
+            html += '<tr><td>' + d.university + '</td><td>' + d.year + '</td><td>' + d.question + '</td><td>' + d.comp_type + '</td><td class="center">' + (d.has_visual ? '○' : '×') + '</td><td>' + d.visual_type + '</td></tr>';
+        }
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    } else {
+        el.innerHTML = '<p class="muted">英作文データなし</p>';
+    }
+}
+
+// ---------- タブ5: 経年変化 ----------
+async function loadYearlyTrend() {
+    const uni = document.getElementById('yearly-university').value;
+    if (!uni) return;
+
+    const res = await fetch('/api/stats/yearly-trend?university=' + encodeURIComponent(uni));
+    const data = await res.json();
+    if (data.empty) return;
+
+    createChart('yearly-genre-chart', {
+        type: 'bar', data: data.genre,
+        options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+            plugins: { title: { display: true, text: uni + ' ジャンル推移' } } }
+    });
+
+    createChart('yearly-format-chart', {
+        type: 'line', data: data.format,
+        options: { responsive: true, scales: { y: { beginAtZero: true } },
+            plugins: { title: { display: true, text: uni + ' 設問形式推移' } } }
     });
 }
 
-async function loadUniversityCompare() {
+// ---------- タブ6: 大学間比較 ----------
+async function loadQuestionFormat() {
     const params = new URLSearchParams();
-    const yearEl = document.getElementById('filter-year');
-    if (yearEl && yearEl.value) params.set('year', yearEl.value);
+    const year = document.getElementById('filter-year').value;
+    if (year) params.set('year', year);
 
-    const res = await fetch('/api/stats/university-compare?' + params.toString());
+    const res = await fetch('/api/stats/question-format?' + params.toString());
     const data = await res.json();
 
-    if (compareChart) compareChart.destroy();
-    const ctx = document.getElementById('university-compare-chart').getContext('2d');
-    compareChart = new Chart(ctx, {
-        type: 'bar',
-        data: data,
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            scales: {
-                x: { stacked: true, beginAtZero: true },
-                y: { stacked: true }
-            },
-            plugins: {
-                title: { display: true, text: '大学別問題構成' }
-            }
-        }
+    createChart('qformat-chart', {
+        type: 'bar', data: data,
+        options: { indexAxis: 'y', responsive: true, scales: { x: { beginAtZero: true } },
+            plugins: { title: { display: true, text: '設問形式の大学別比較' } } }
     });
 }
 </script>
