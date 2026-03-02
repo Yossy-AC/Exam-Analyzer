@@ -63,17 +63,17 @@ async def university_profile(request: Request, university: str = "", year: int =
         if r["genre_sub"]:
             genre_themes[r["genre_main"]][r["genre_sub"]].add(r["theme"])
 
-    # 設問形式（全体）
-    jp_written = sum(1 for r in rows if r["has_jp_written"])
-    en_written = sum(1 for r in rows if r["has_en_written"])
-    summary = sum(1 for r in rows if r["has_summary"])
-    comp_wabun = sum(1 for r in rows if r["comp_type"] == "和文英訳")
-    comp_jiyu = sum(1 for r in rows if r["comp_type"] == "自由英作文")
+    # 設問形式（5分類）
+    jp_translation = sum(1 for r in rows if r["has_jp_translation"])
+    jp_explanation = sum(1 for r in rows if r["has_jp_explanation"])
+    en_explanation = sum(1 for r in rows if r["has_en_explanation"])
+    jp_summary = sum(1 for r in rows if r["has_jp_summary"])
+    en_summary = sum(1 for r in rows if r["has_en_summary"])
 
     # 設問形式の円グラフ用データ
-    qformat_data = [jp_written, en_written, summary, comp_wabun, comp_jiyu]
+    qformat_data = [jp_translation, jp_explanation, en_explanation, jp_summary, en_summary]
     qformat_chart = {
-        "labels": ["和訳", "英訳", "要約", "和文英訳", "自由英作文"],
+        "labels": ["和訳", "説明（日）", "説明（英）", "要約（日）", "要約（英）"],
         "data": qformat_data,
         "colors": ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f"],
     }
@@ -284,11 +284,11 @@ async def yearly_trend(university: str = ""):
             })
 
     format_defs = [
-        ("和訳", "has_jp_written", None, "#4e79a7"),
-        ("英訳", "has_en_written", None, "#f28e2b"),
-        ("要約", "has_summary", None, "#e15759"),
-        ("和文英訳", None, "和文英訳", "#76b7b2"),
-        ("自由英作文", None, "自由英作文", "#59a14f"),
+        ("和訳", "has_jp_translation", None, "#4e79a7"),
+        ("説明（日）", "has_jp_explanation", None, "#f28e2b"),
+        ("説明（英）", "has_en_explanation", None, "#e15759"),
+        ("要約（日）", "has_jp_summary", None, "#76b7b2"),
+        ("要約（英）", "has_en_summary", None, "#59a14f"),
     ]
     format_datasets = []
     for label, field, comp_val, color in format_defs:
@@ -371,10 +371,11 @@ async def question_format(year: int = None):
 
         rows = conn.execute(
             f"""SELECT university,
-                SUM(has_jp_written) as jp, SUM(has_en_written) as en,
-                SUM(has_summary) as summary,
-                SUM(CASE WHEN comp_type = '和文英訳' THEN 1 ELSE 0 END) as wabun,
-                SUM(CASE WHEN comp_type = '自由英作文' THEN 1 ELSE 0 END) as jiyu
+                SUM(has_jp_translation) as jp_translation,
+                SUM(has_jp_explanation) as jp_explanation,
+                SUM(has_en_explanation) as en_explanation,
+                SUM(has_jp_summary) as jp_summary,
+                SUM(has_en_summary) as en_summary
             FROM passages {where}
             GROUP BY university ORDER BY university""",
             params,
@@ -384,11 +385,11 @@ async def question_format(year: int = None):
 
     universities = [r["university"] for r in rows]
     datasets = [
-        {"label": "和訳", "data": [r["jp"] or 0 for r in rows], "backgroundColor": "#4e79a7"},
-        {"label": "英訳", "data": [r["en"] or 0 for r in rows], "backgroundColor": "#f28e2b"},
-        {"label": "要約", "data": [r["summary"] or 0 for r in rows], "backgroundColor": "#e15759"},
-        {"label": "和文英訳", "data": [r["wabun"] or 0 for r in rows], "backgroundColor": "#76b7b2"},
-        {"label": "自由英作文", "data": [r["jiyu"] or 0 for r in rows], "backgroundColor": "#59a14f"},
+        {"label": "和訳", "data": [r["jp_translation"] or 0 for r in rows], "backgroundColor": "#4e79a7"},
+        {"label": "説明（日）", "data": [r["jp_explanation"] or 0 for r in rows], "backgroundColor": "#f28e2b"},
+        {"label": "説明（英）", "data": [r["en_explanation"] or 0 for r in rows], "backgroundColor": "#e15759"},
+        {"label": "要約（日）", "data": [r["jp_summary"] or 0 for r in rows], "backgroundColor": "#76b7b2"},
+        {"label": "要約（英）", "data": [r["en_summary"] or 0 for r in rows], "backgroundColor": "#59a14f"},
     ]
 
     return JSONResponse({"labels": universities, "datasets": datasets})

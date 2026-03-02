@@ -111,48 +111,82 @@ def split_questions(body: str) -> list[tuple[str, str]]:
 def extract_text_section(block: str) -> str:
     """ブロックから ## Text セクションの内容を抽出する。
 
-    ## Text がない場合、## Instructions の後～次の ## の前をTextとみなす。
+    複数の ## Text がある場合は連結する（東京大 Q1 の(A)(B)対応）。
+    Text が空（[ ] のみ等）の場合、## Data → ## Instructions の順にフォールバック。
     """
-    # ## Text セクションを探す
-    text_match = re.search(r"^## Text\s*\n", block, re.MULTILINE)
-    if text_match:
-        start = text_match.end()
-        # 次の ## (ただし ## Vocabulary, ## Data, ## Questions, ## Instructions)
-        next_section = re.search(r"^## (?:Questions|Vocabulary|Data|Instructions)\s*$", block[start:], re.MULTILINE)
-        end = start + next_section.start() if next_section else len(block)
-        return block[start:end].strip()
+    SECTION_BOUNDARY = r"^## (?:Questions|Vocabulary|Data|Instructions|Text)\s*$"
 
-    # ## Text がない場合は Instructions 後の本文をテキストとみなす
+    # 全 ## Text セクションを収集
+    text_parts = []
+    for m in re.finditer(r"^## Text\s*\n", block, re.MULTILINE):
+        start = m.end()
+        next_section = re.search(SECTION_BOUNDARY, block[start:], re.MULTILINE)
+        end = start + next_section.start() if next_section else len(block)
+        part = block[start:end].strip()
+        # [ ] や空のテキストは除外
+        if part and not re.match(r"^\[[\s]*\]$", part):
+            text_parts.append(part)
+
+    if text_parts:
+        return "\n\n".join(text_parts)
+
+    # Text が空の場合、## Data セクションをフォールバック（グラフ・表付き英作文）
+    data_match = re.search(r"^## Data\s*\n", block, re.MULTILINE)
+    if data_match:
+        start = data_match.end()
+        next_section = re.search(SECTION_BOUNDARY, block[start:], re.MULTILINE)
+        end = start + next_section.start() if next_section else len(block)
+        data_text = block[start:end].strip()
+        if data_text:
+            return data_text
+
+    # ## Instructions 後の本文をテキストとみなす
     inst_match = re.search(r"^## Instructions\s*\n", block, re.MULTILINE)
     if inst_match:
         start = inst_match.end()
-        # Instructions直後の1行目をスキップ（設問指示文）して残りをテキストとして扱う
         next_section = re.search(r"^## ", block[start:], re.MULTILINE)
         end = start + next_section.start() if next_section else len(block)
-        text = block[start:end].strip()
-        return text
+        return block[start:end].strip()
 
     return block.strip()
 
 
 def extract_questions_section(block: str) -> str:
-    """ブロックから ## Questions セクション以降を抽出する。
+    """ブロックから設問情報を抽出する。
 
-    ## Data セクションがある場合は設問情報に含める（視覚情報検出のため）。
+    全 ## Instructions + ## Data + ## Questions を結合して返す。
+    これにより要約指示・英作文指示・視覚情報なども設問分析に含まれる。
     """
+    SECTION_BOUNDARY = r"^## (?:Questions|Vocabulary|Data|Instructions|Text)\s*$"
+    parts = []
+
+    # 全 ## Instructions セクション（設問指示: 要約せよ、日本語で説明しなさい等）
+    for m in re.finditer(r"^## Instructions\s*\n", block, re.MULTILINE):
+        start = m.end()
+        next_section = re.search(SECTION_BOUNDARY, block[start:], re.MULTILINE)
+        end = start + next_section.start() if next_section else len(block)
+        content = block[start:end].strip()
+        if content:
+            parts.append(content)
+
+    # ## Data セクション（視覚情報検出用）
+    data_match = re.search(r"^## Data\s*\n", block, re.MULTILINE)
+    if data_match:
+        start = data_match.end()
+        next_section = re.search(SECTION_BOUNDARY, block[start:], re.MULTILINE)
+        end = start + next_section.start() if next_section else len(block)
+        content = block[start:end].strip()
+        if content:
+            parts.append(content)
+
+    # ## Questions セクション
     q_match = re.search(r"^## Questions\s*\n", block, re.MULTILINE)
     if q_match:
-        return block[q_match.end():].strip()
+        content = block[q_match.end():].strip()
+        if content:
+            parts.append(content)
 
-    # ## Questions がない場合は ## Instructions + ## Data の内容を返す
-    inst_match = re.search(r"^## Instructions\s*\n", block, re.MULTILINE)
-    if inst_match:
-        start = inst_match.end()
-        text_match = re.search(r"^## Text\s*\n", block[start:], re.MULTILINE)
-        end = start + text_match.start() if text_match else len(block)
-        return block[start:end].strip()
-
-    return ""
+    return "\n\n".join(parts)
 
 
 def detect_ab_split(text: str) -> list[tuple[str, str]]:

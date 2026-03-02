@@ -63,10 +63,18 @@ DB_PATH=./data/exam.db               # DB保存先
 ## MDパーサーの注意点
 - 京都大: `university: (不明)`, `year: 令和7年度` → ファイル名フォールバック
 - 東京大: `# Question 1 (Continued)` → 前の大問にマージ
+- 東京大: 1つのQuestionに複数の`## Text`がある場合は連結（Q1の(A)(B)対応）
 - 大阪大: `(A)/(B)` 分割 → 別パッセージとして抽出
 - 九州大: `# Question [1]` → 角括弧付き番号に対応
 - 大阪大（外国語）: `university: 大阪大（外国語）` → 大学名と学部に分離、IDに学部を含める
-- `## Data` セクション: `## Questions` がない場合、`## Instructions` + `## Data` を設問セクションとして扱う（視覚情報検出のため）
+- `## Text`が空（`[ ]`等）の場合、`## Data` → `## Instructions`の順にフォールバック
+- 設問分析には全`## Instructions` + `## Data` + `## Questions`を結合して送信（要約指示・英作文指示も検出可能に）
+
+## text_type 分類（4種別）
+- `long_reading`: 長文読解（200語以上 + 内容理解問題）
+- `short_translation`: 短文和訳（英→日のみ）
+- `composition`: 英作文（和文英訳・自由英作文・グラフ記述）
+- `listening`: リスニング（放送・聞き取り問題）
 
 ## 設問分析フィールド（5分類 + 視覚情報）
 - `has_jp_translation`: 和訳問題

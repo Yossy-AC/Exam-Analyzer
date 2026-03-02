@@ -31,7 +31,7 @@ GENRE_MAIN_LIST = [
     "その他",
 ]
 
-TEXT_TYPE_LIST = ["long_reading", "short_translation", "composition"]
+TEXT_TYPE_LIST = ["long_reading", "short_translation", "composition", "listening"]
 
 TEXT_STYLE_LIST = [
     "説明文",
