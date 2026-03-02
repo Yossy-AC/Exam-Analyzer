@@ -142,4 +142,5 @@ async def delete_passage(passage_id: str):
         conn.commit()
     finally:
         conn.close()
+    # 削除成功時は 200 で空レスポンス返す（HTMX が要素を削除）
     return HTMLResponse("", status_code=200)

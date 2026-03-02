@@ -62,8 +62,7 @@
     <td>
         <button class="btn btn-xs btn-danger"
                 hx-delete="/api/passages/{{ p.id }}"
-                hx-target="#row-{{ p.id }}"
-                hx-swap="outerHTML"
-                hx-confirm="削除しますか？">×</button>
+                hx-confirm="削除しますか？"
+                onclick="this.closest('tr').remove()">×</button>
     </td>
 </tr>
