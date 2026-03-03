@@ -1,0 +1,86 @@
+<!-- 要確認リスト -->
+
+<!-- セクション1: ジョブ問題 -->
+<div>
+    <h5 style="margin:0 0 8px;">ジョブ問題（{{ problem_jobs|length }}件）</h5>
+    {% if problem_jobs %}
+    <div style="overflow-x:auto;">
+        <table class="table table-sm" style="font-size:13px; width:100%;">
+            <thead>
+                <tr>
+                    <th>ファイル名</th>
+                    <th>状態</th>
+                    <th>抽出数</th>
+                    <th>エラー内容</th>
+                    <th>日時</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in problem_jobs %}
+                <tr style="{% if job.status == 'error' %}background:#fde8e8;{% else %}background:#fff8e1;{% endif %}">
+                    <td>{{ job.filename }}</td>
+                    <td>
+                        {% if job.status == 'error' %}
+                        <span style="color:#c44;">エラー</span>
+                        {% else %}
+                        <span style="color:#e6a000;">完了（少数）</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:center;">{{ job.passages_created }}</td>
+                    <td style="color:#666;">{{ job.error_message or '' }}</td>
+                    <td style="white-space:nowrap; color:#888;">{{ job.created_at[:16] if job.created_at else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#888; font-size:13px;">問題ありません</p>
+    {% endif %}
+</div>
+
+<!-- セクション2: データ問題 -->
+<div style="margin-top:20px;">
+    <h5 style="margin:0 0 8px;">データ問題（{{ problem_passages|length }}件）</h5>
+    <p style="font-size:12px; color:#888; margin-bottom:8px;">ジャンル「その他」またはテーマ「不明」「内容不明」</p>
+    {% if problem_passages %}
+    <div style="overflow-x:auto;">
+        <table class="table table-sm" style="font-size:13px; width:100%;">
+            <thead>
+                <tr>
+                    <th>大学</th>
+                    <th>年度</th>
+                    <th>問番号</th>
+                    <th>ジャンル</th>
+                    <th>テーマ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in problem_passages %}
+                <tr>
+                    <td>{{ p.university }}</td>
+                    <td>{{ p.year }}</td>
+                    <td>{{ p.question_number }}-{{ p.passage_index }}</td>
+                    <td>
+                        {% if p.genre_main == 'その他' %}
+                        <span style="color:#e6a000;">{{ p.genre_main }}</span>
+                        {% else %}
+                        {{ p.genre_main }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if p.theme in ('不明', '内容不明') %}
+                        <span style="color:#c44;">{{ p.theme }}</span>
+                        {% else %}
+                        {{ p.theme }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#888; font-size:13px;">問題ありません</p>
+    {% endif %}
+</div>

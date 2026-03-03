@@ -59,19 +59,14 @@ header nav { display: flex; gap: 8px; align-items: center; }
 }
 
 .filters {
-    width: 200px;
+    width: 230px;
     padding: 16px;
     background: var(--surface);
     border-right: 1px solid var(--border);
     flex-shrink: 0;
+    overflow-y: auto;
 }
 .filters h3 { font-size: 14px; margin-bottom: 12px; }
-.filters label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: var(--muted);
-}
 .filters select {
     display: block;
     width: 100%;
@@ -81,7 +76,28 @@ header nav { display: flex; gap: 8px; align-items: center; }
     border-radius: 3px;
     font-size: 13px;
 }
-.filters .btn { width: 100%; margin-top: 8px; }
+.filter-group { margin-bottom: 12px; }
+.filter-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+.checkbox-controls {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+.checkbox-list { display: flex; flex-direction: column; gap: 2px; }
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 1px 0;
+}
+.checkbox-item input { margin: 0; cursor: pointer; }
 .stats { margin-top: 16px; font-size: 12px; color: var(--muted); }
 
 .content {
@@ -323,3 +339,36 @@ canvas { max-height: 500px; }
     padding: 16px;
 }
 .compare-section h4 { font-size: 14px; margin-bottom: 12px; }
+
+/* Dashboard KPI cards */
+.kpi-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.kpi-card {
+    flex: 1;
+    min-width: 140px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+.kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.kpi-value { font-size: 28px; font-weight: 700; color: var(--text); }
+
+/* Dashboard grid */
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dashboard-section { margin-bottom: 24px; }
+.dashboard-section h4 { font-size: 14px; margin-bottom: 8px; }
+
+/* Print styles */
+@media print {
+    aside.filters,
+    .tabs,
+    .tab-controls,
+    .bulk-actions,
+    button { display: none !important; }
+    .tab-panel:not(.active) { display: none !important; }
+    .tab-panel.active { display: block !important; }
+    .print-table { font-size: 10pt; border-collapse: collapse; width: 100%; }
+    .print-table th,
+    .print-table td { border: 1px solid #ccc; padding: 4px 8px; }
+}

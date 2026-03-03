@@ -23,9 +23,14 @@ templates = Jinja2Templates(directory="templates")
 
 
 def _save_passage(data: dict) -> None:
-    """分類結果をDBに保存する。既存IDはスキップ。"""
+    """分類結果をDBに保存する。既存IDはスキップ。未登録大学は自動追加。"""
     conn = get_connection()
     try:
+        # 未登録大学を universities テーブルに自動追加（FK制約対応）
+        conn.execute(
+            "INSERT OR IGNORE INTO universities (name, is_kyutei, is_national, is_private) VALUES (?, 0, 1, 0)",
+            (data["university"],),
+        )
         conn.execute(
             """INSERT OR IGNORE INTO passages
             (id, university, year, faculty, question_number, passage_index,
@@ -174,4 +179,34 @@ async def get_jobs(request: Request):
     return templates.TemplateResponse(
         "partials/job_status.html",
         {"request": request, "jobs": jobs},
+    )
+
+
+@router.get("/api/review-list")
+async def get_review_list(request: Request):
+    """要確認リスト（エラージョブ・低抽出数・データ問題）を返す。"""
+    conn = get_connection()
+    try:
+        problem_jobs = conn.execute("""
+            SELECT id, filename, status, passages_created, error_message, created_at
+            FROM analysis_jobs
+            WHERE status = 'error'
+               OR (status = 'completed' AND passages_created <= 2)
+            ORDER BY created_at DESC
+        """).fetchall()
+
+        problem_passages = conn.execute("""
+            SELECT id, university, year, question_number, passage_index,
+                   genre_main, theme
+            FROM passages
+            WHERE genre_main = 'その他'
+               OR theme IN ('不明', '内容不明')
+            ORDER BY year DESC, university, question_number
+        """).fetchall()
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse(
+        "partials/review_list.html",
+        {"request": request, "problem_jobs": problem_jobs, "problem_passages": problem_passages},
     )

@@ -21,10 +21,11 @@ exam-text-classifier/
 │   ├── classifier.py       # Claude API呼び出し
 │   ├── prompts.py          # プロンプト定義
 │   └── routers/            # エンドポイント群
-│       ├── upload.py       # アップロード・解析
-│       ├── passages.py     # CRUD・インライン編集
+│       ├── upload.py       # アップロード・解析・レビューリスト
+│       ├── passages.py     # CRUD・インライン編集・手動追加・カラムフィルター
 │       ├── dashboard.py    # 集計・グラフデータ
-│       └── export.py       # CSV/JSON/DBエクスポート
+│       ├── export.py       # CSV/JSON/DBエクスポート
+│       └── universities.py # 大学分類・地域設定管理
 ├── templates/              # Jinja2テンプレート
 │   ├── base.html
 │   ├── index.html          # ダッシュボード（7タブ）
@@ -87,7 +88,14 @@ DB_PATH=./data/exam.db               # DB保存先
 ## データ管理
 - 全データ削除: `POST /api/passages/delete-all`
 - 年度・大学別削除: `DELETE /api/passages?year=&university=`
+- 手動データ追加: `POST /api/passages/manual`
+- "その他"サブカテゴリ一括再分類: `POST /api/passages/reclassify-other`
 - プロンプトやパーサー修正後は全削除→再アップロードが必要（`INSERT OR IGNORE`のため）
+
+## data/フォルダ
+- OneDriveへのシンボリックリンク（`C:\Users\yoshi\OneDrive\DO_NOT_CHANGE_NAME`）
+- 自宅・職場PC間のDB同期に使用。同時起動禁止。
+- 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
 
 ## ジャンル分類スキーム（10カテゴリ）
 科学・技術 / 医療・健康 / 心理・行動 / 教育・学習 / 環境・自然 / 社会・文化 / 経済・ビジネス / 歴史・哲学 / 言語・コミュニケーション / その他

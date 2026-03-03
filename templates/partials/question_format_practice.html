@@ -1,0 +1,35 @@
+{% if passages %}
+<p style="margin-bottom:8px; color:#6c757d; font-size:13px;">{{ count }}件</p>
+<table class="table table-compact print-table">
+    <thead>
+        <tr>
+            <th>大学</th>
+            <th>年度</th>
+            <th>ジャンル</th>
+            <th>テーマ</th>
+            <th>和訳</th>
+            <th>説明(日)</th>
+            <th>説明(英)</th>
+            <th>要約(日)</th>
+            <th>要約(英)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in passages %}
+        <tr>
+            <td>{{ p.university }}</td>
+            <td>{{ p.year }}</td>
+            <td>{{ p.genre_main }}</td>
+            <td>{{ p.theme or '—' }}</td>
+            <td class="center">{{ '○' if p.has_jp_translation else '' }}</td>
+            <td class="center">{{ '○' if p.has_jp_explanation else '' }}</td>
+            <td class="center">{{ '○' if p.has_en_explanation else '' }}</td>
+            <td class="center">{{ '○' if p.has_jp_summary else '' }}</td>
+            <td class="center">{{ '○' if p.has_en_summary else '' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">条件に合うデータがありません</p>
+{% endif %}

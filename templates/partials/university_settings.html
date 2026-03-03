@@ -1,0 +1,87 @@
+<div class="university-settings">
+    <h4 style="margin-bottom:12px;">大学設定
+        <span style="font-size:12px; font-weight:normal; color:#6c757d; margin-left:8px;">
+            分類・地域が未設定の大学を上部に表示しています
+        </span>
+    </h4>
+
+    {% if not universities %}
+    <p class="muted">登録大学なし</p>
+    {% else %}
+    <table class="table" style="font-size:13px;">
+        <thead>
+            <tr>
+                <th style="width:120px;">大学名</th>
+                <th style="width:140px;">大学分類</th>
+                <th style="width:140px;">地域</th>
+                <th style="width:80px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in universities %}
+            {% set is_unset = (u.university_class == '' or u.region == '') %}
+            <tr id="univ-row-{{ loop.index }}" {% if is_unset %}style="background:#fff8e1;"{% endif %}>
+                <td>
+                    {{ u.name }}
+                    {% if is_unset %}
+                    <span style="font-size:10px; color:#e15759; margin-left:4px;">未設定</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <select id="cls-{{ loop.index }}" style="width:100%; font-size:12px;">
+                        <option value="">-- 選択 --</option>
+                        {% for cls in university_class_list %}
+                        {% if cls != '未設定' %}
+                        <option value="{{ cls }}" {% if u.university_class == cls %}selected{% endif %}>{{ cls }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select id="reg-{{ loop.index }}" style="width:100%; font-size:12px;">
+                        <option value="">-- 選択 --</option>
+                        {% for r in region_list %}
+                        {% if r != '未設定' %}
+                        <option value="{{ r }}" {% if u.region == r %}selected{% endif %}>{{ r }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary"
+                            onclick="saveUnivSettings('{{ u.name }}', {{ loop.index }})"
+                            style="font-size:11px; padding:3px 8px;">
+                        保存
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<script>
+async function saveUnivSettings(name, idx) {
+    const cls = document.getElementById('cls-' + idx).value;
+    const reg = document.getElementById('reg-' + idx).value;
+    if (!cls || !reg) {
+        alert('分類と地域を両方選択してください');
+        return;
+    }
+    try {
+        const res = await fetch('/api/universities/' + encodeURIComponent(name), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ university_class: cls, region: reg }),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const row = document.getElementById('univ-row-' + idx);
+        row.style.background = '';
+        const badge = row.querySelector('span[style*="e15759"]');
+        if (badge) badge.remove();
+    } catch (e) {
+        alert('保存に失敗しました: ' + e.message);
+    }
+}
+</script>

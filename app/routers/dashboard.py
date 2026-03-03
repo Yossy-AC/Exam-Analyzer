@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
+from typing import List, Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import GENRE_MAIN_LIST
-from app.db import get_connection
+from app.db import build_filter_where, get_connection
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -19,6 +20,14 @@ GENRE_COLORS = [
     "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac",
 ]
 
+TEXT_TYPE_LABELS = {
+    "long_reading": "長文読解",
+    "short_translation": "短文和訳",
+    "composition": "英作文",
+    "listening": "リスニング",
+}
+TEXT_TYPE_COLORS = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2"]
+
 
 def _genre_color(genre: str) -> str:
     if genre in GENRE_MAIN_LIST:
@@ -26,10 +35,82 @@ def _genre_color(genre: str) -> str:
     return "#bab0ac"
 
 
-# ---------- タブ2: 大学別傾向 ----------
+# ---------- タブ1: ダッシュボード ----------
+
+@router.get("/api/stats/dashboard")
+async def dashboard_partial(
+    request: Request,
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    university_class: List[str] = Query(default=[]),
+    region: List[str] = Query(default=[]),
+):
+    """ダッシュボード概要パーシャル（HTML）。"""
+    conn = get_connection()
+    try:
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+            university_class=list(university_class), region=list(region),
+        )
+        where = f"WHERE 1=1{extra}"
+        params: list = filter_params
+
+        total_passages = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM passages {where}", params
+        ).fetchone()["cnt"]
+
+        total_universities = conn.execute(
+            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where}", params
+        ).fetchone()["cnt"]
+
+        year_row = conn.execute(
+            f"SELECT MIN(year) as y_min, MAX(year) as y_max FROM passages {where}", params
+        ).fetchone()
+
+        text_type_rows = conn.execute(
+            f"SELECT text_type, COUNT(*) as count FROM passages {where} GROUP BY text_type",
+            params,
+        ).fetchall()
+
+        top_genre_rows = conn.execute(
+            f"SELECT genre_main, COUNT(*) as count FROM passages {where} AND text_type = 'long_reading' GROUP BY genre_main ORDER BY count DESC LIMIT 5",
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+
+    tt_map = {r["text_type"]: r["count"] for r in text_type_rows}
+    tt_order = ["long_reading", "short_translation", "composition", "listening"]
+    text_type_dist = {
+        "labels": [TEXT_TYPE_LABELS[k] for k in tt_order],
+        "data": [tt_map.get(k, 0) for k in tt_order],
+    }
+
+    return templates.TemplateResponse(
+        "partials/dashboard.html",
+        {
+            "request": request,
+            "total_passages": total_passages,
+            "total_universities": total_universities,
+            "year_min": year_row["y_min"] or "—",
+            "year_max": year_row["y_max"] or "—",
+            "text_type_dist": text_type_dist,
+            "top_genres": [{"genre": r["genre_main"], "count": r["count"]} for r in top_genre_rows],
+        },
+    )
+
+
+# ---------- タブ6: 大学別傾向 ----------
 
 @router.get("/api/stats/university-profile")
-async def university_profile(request: Request, university: str = "", year: int = None):
+async def university_profile(
+    request: Request,
+    university: str = "",
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+):
     """大学別サマリーカード（HTML partial）。"""
     if not university:
         return templates.TemplateResponse(
@@ -39,20 +120,53 @@ async def university_profile(request: Request, university: str = "", year: int =
 
     conn = get_connection()
     try:
-        query = "SELECT * FROM passages WHERE university = ? AND text_type = 'long_reading'"
-        params: list = [university]
-        if year:
-            query += " AND year = ?"
-            params.append(year)
-        query += " ORDER BY year DESC, question_number"
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+        )
+        # 長文読解のみ（ジャンル・記述種別用）
+        query = f"SELECT * FROM passages WHERE university = ? AND text_type = 'long_reading'{extra} ORDER BY year DESC, question_number"
+        params: list = [university, *filter_params]
         rows = conn.execute(query, params).fetchall()
+
+        # 全 text_type（問題形式・英作文形式用）
+        all_query = f"SELECT * FROM passages WHERE university = ?{extra} ORDER BY year"
+        all_rows = conn.execute(all_query, params).fetchall()
     finally:
         conn.close()
+
+    if not rows and not all_rows:
+        return templates.TemplateResponse(
+            "partials/university_profile.html",
+            {"request": request, "empty": True},
+        )
+
+    # 問題形式（text_type）分布
+    tt_counts = Counter(r["text_type"] for r in all_rows)
+    tt_order = ["long_reading", "short_translation", "composition", "listening"]
+    text_type_chart = {
+        "labels": [TEXT_TYPE_LABELS[k] for k in tt_order],
+        "data": [tt_counts.get(k, 0) for k in tt_order],
+        "colors": TEXT_TYPE_COLORS,
+    }
+
+    # 英作文形式（comp_type）分布
+    comp_rows = [r for r in all_rows if r["text_type"] == "composition"]
+    comp_counts = Counter(r["comp_type"] for r in comp_rows)
+    comp_type_chart = {
+        "labels": ["和文英訳", "自由英作文", "なし"],
+        "data": [comp_counts.get("和文英訳", 0), comp_counts.get("自由英作文", 0), comp_counts.get("none", 0)],
+        "colors": ["#59a14f", "#edc948", "#dee2e6"],
+    }
 
     if not rows:
         return templates.TemplateResponse(
             "partials/university_profile.html",
-            {"request": request, "empty": True},
+            {"request": request, "empty": False, "university": university,
+             "total": len(all_rows), "no_reading": True,
+             "text_type_chart": text_type_chart, "comp_type_chart": comp_type_chart,
+             "genre_chart": {"labels": [], "data": [], "colors": []},
+             "qformat_chart": {"labels": [], "data": [], "colors": []},
+             "avg_words": 0, "genre_details": {}},
         )
 
     # 長文ジャンル分布
@@ -63,25 +177,22 @@ async def university_profile(request: Request, university: str = "", year: int =
         if r["genre_sub"]:
             genre_themes[r["genre_main"]][r["genre_sub"]].add(r["theme"])
 
-    # 設問形式（5分類）
+    # 記述種別（5分類）
     jp_translation = sum(1 for r in rows if r["has_jp_translation"])
     jp_explanation = sum(1 for r in rows if r["has_jp_explanation"])
     en_explanation = sum(1 for r in rows if r["has_en_explanation"])
     jp_summary = sum(1 for r in rows if r["has_jp_summary"])
     en_summary = sum(1 for r in rows if r["has_en_summary"])
 
-    # 設問形式の円グラフ用データ
-    qformat_data = [jp_translation, jp_explanation, en_explanation, jp_summary, en_summary]
     qformat_chart = {
         "labels": ["和訳", "説明（日）", "説明（英）", "要約（日）", "要約（英）"],
-        "data": qformat_data,
+        "data": [jp_translation, jp_explanation, en_explanation, jp_summary, en_summary],
         "colors": ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f"],
     }
 
     word_counts = [r["word_count"] for r in rows if r["word_count"]]
     avg_words = round(sum(word_counts) / len(word_counts)) if word_counts else 0
 
-    # ジャンル別データを人気順（降順）でソート
     sorted_genres = sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)
     genre_chart = {
         "labels": [g[0] for g in sorted_genres],
@@ -89,7 +200,6 @@ async def university_profile(request: Request, university: str = "", year: int =
         "colors": [_genre_color(g[0]) for g in sorted_genres],
     }
 
-    # ジャンル別テーマ情報（人気順）
     genre_details = {}
     for g, count in sorted_genres:
         genre_details[g] = {
@@ -103,8 +213,10 @@ async def university_profile(request: Request, university: str = "", year: int =
             "request": request,
             "empty": False,
             "university": university,
-            "total": len(rows),
+            "total": len(all_rows),
+            "text_type_chart": text_type_chart,
             "genre_chart": genre_chart,
+            "comp_type_chart": comp_type_chart,
             "qformat_chart": qformat_chart,
             "avg_words": avg_words,
             "genre_details": genre_details,
@@ -115,18 +227,22 @@ async def university_profile(request: Request, university: str = "", year: int =
 # ---------- タブ3: 長文統計 ----------
 
 @router.get("/api/stats/reading-stats")
-async def reading_stats(year: int = None, university: str = ""):
+async def reading_stats(
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    university_class: List[str] = Query(default=[]),
+    region: List[str] = Query(default=[]),
+):
     """長文統計データ（JSON）。"""
     conn = get_connection()
     try:
-        where = "WHERE text_type = 'long_reading'"
-        params: list = []
-        if year:
-            where += " AND year = ?"
-            params.append(year)
-        if university:
-            where += " AND university = ?"
-            params.append(university)
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+            university_class=list(university_class), region=list(region),
+        )
+        where = f"WHERE text_type = 'long_reading'{extra}"
+        params: list = filter_params
 
         genre_rows = conn.execute(
             f"SELECT genre_main, COUNT(*) as count FROM passages {where} GROUP BY genre_main ORDER BY count DESC",
@@ -197,18 +313,22 @@ async def reading_stats(year: int = None, university: str = ""):
 # ---------- タブ4: 英作文統計 ----------
 
 @router.get("/api/stats/composition-stats")
-async def composition_stats(year: int = None, university: str = ""):
+async def composition_stats(
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    university_class: List[str] = Query(default=[]),
+    region: List[str] = Query(default=[]),
+):
     """英作文統計データ（JSON）。"""
     conn = get_connection()
     try:
-        where = "WHERE 1=1"
-        params: list = []
-        if year:
-            where += " AND year = ?"
-            params.append(year)
-        if university:
-            where += " AND university = ?"
-            params.append(university)
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+            university_class=list(university_class), region=list(region),
+        )
+        where = f"WHERE 1=1{extra}"
+        params: list = filter_params
 
         total = conn.execute(f"SELECT COUNT(*) as cnt FROM passages {where}", params).fetchone()["cnt"]
         comp_count = conn.execute(
@@ -251,7 +371,7 @@ async def composition_stats(year: int = None, university: str = ""):
     })
 
 
-# ---------- タブ5: 経年変化 ----------
+# ---------- タブ7: 経年変化 ----------
 
 @router.get("/api/stats/yearly-trend")
 async def yearly_trend(university: str = ""):
@@ -315,18 +435,146 @@ async def yearly_trend(university: str = ""):
     })
 
 
-# ---------- タブ6: 大学間比較 ----------
+# ---------- タブ5: 大学間比較 ----------
 
+@router.get("/api/stats/compare-universities")
+async def compare_universities(
+    uni1: str = "",
+    uni2: str = "",
+    uni3: str = "",
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+):
+    """3大学の設問形式比較データ（JSON）。"""
+    unis = [u for u in [uni1, uni2, uni3] if u]
+    if not unis:
+        return JSONResponse({"labels": [], "datasets": []})
+
+    conn = get_connection()
+    try:
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+        )
+        placeholders = ",".join("?" * len(unis))
+        query = f"""SELECT university,
+            SUM(has_jp_translation) as jp_translation,
+            SUM(has_jp_explanation) as jp_explanation,
+            SUM(has_en_explanation) as en_explanation,
+            SUM(has_jp_summary) as jp_summary,
+            SUM(has_en_summary) as en_summary
+        FROM passages
+        WHERE university IN ({placeholders}) AND text_type = 'long_reading'{extra}
+        GROUP BY university"""
+        params: list = [*unis, *filter_params]
+        rows = conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
+
+    row_map = {r["university"]: r for r in rows}
+    uni_colors = ["#4e79a7", "#f28e2b", "#e15759"]
+    datasets = []
+    for i, uni in enumerate(unis):
+        r = row_map.get(uni)
+        datasets.append({
+            "label": uni,
+            "data": [
+                r["jp_translation"] or 0 if r else 0,
+                r["jp_explanation"] or 0 if r else 0,
+                r["en_explanation"] or 0 if r else 0,
+                r["jp_summary"] or 0 if r else 0,
+                r["en_summary"] or 0 if r else 0,
+            ],
+            "backgroundColor": uni_colors[i],
+        })
+
+    return JSONResponse({
+        "labels": ["和訳", "説明（日）", "説明（英）", "要約（日）", "要約（英）"],
+        "datasets": datasets,
+    })
+
+
+# ---------- タブ4: 問題形式選択 ----------
+
+@router.get("/api/stats/practice-list")
+async def practice_list(
+    request: Request,
+    text_type: str = "",
+    has_jp_translation: Optional[int] = None,
+    has_jp_explanation: Optional[int] = None,
+    has_en_explanation: Optional[int] = None,
+    has_jp_summary: Optional[int] = None,
+    has_en_summary: Optional[int] = None,
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    university_class: List[str] = Query(default=[]),
+    region: List[str] = Query(default=[]),
+):
+    """問題形式別パッセージ一覧（HTML partial）。"""
+    conn = get_connection()
+    try:
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+            university_class=list(university_class), region=list(region),
+        )
+        conditions = ["1=1"]
+        params: list = list(filter_params)
+
+        if text_type:
+            conditions.append("text_type = ?")
+            params.insert(0, text_type)
+
+        # 長文読解のサブフィルター（OR条件）
+        if text_type == "long_reading":
+            sub_filters = []
+            for field, val in [
+                ("has_jp_translation", has_jp_translation),
+                ("has_jp_explanation", has_jp_explanation),
+                ("has_en_explanation", has_en_explanation),
+                ("has_jp_summary", has_jp_summary),
+                ("has_en_summary", has_en_summary),
+            ]:
+                if val is not None and val == 1:
+                    sub_filters.append(f"{field} = 1")
+            if sub_filters:
+                conditions.append(f"({' OR '.join(sub_filters)})")
+
+        where = "WHERE " + " AND ".join(conditions) + extra
+        query = f"""SELECT university, year, theme, genre_main, genre_sub, text_type,
+            has_jp_translation, has_jp_explanation, has_en_explanation,
+            has_jp_summary, has_en_summary
+        FROM passages {where}
+        ORDER BY university, year"""
+        rows = conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse(
+        "partials/question_format_practice.html",
+        {"request": request, "passages": rows, "count": len(rows)},
+    )
+
+
+# 旧エンドポイント（後方互換のため残す）
 @router.get("/api/stats/heatmap")
-async def heatmap(request: Request, year: int = None):
+async def heatmap(
+    request: Request,
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    university_class: List[str] = Query(default=[]),
+    region: List[str] = Query(default=[]),
+):
     """大学×ジャンル ヒートマップ（HTML partial）。"""
     conn = get_connection()
     try:
-        where = "WHERE 1=1"
-        params: list = []
-        if year:
-            where += " AND year = ?"
-            params.append(year)
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+            university_class=list(university_class), region=list(region),
+        )
+        where = f"WHERE 1=1{extra}"
+        params: list = filter_params
 
         rows = conn.execute(
             f"SELECT university, genre_main, COUNT(*) as count FROM passages {where} GROUP BY university, genre_main",
@@ -359,15 +607,22 @@ async def heatmap(request: Request, year: int = None):
 
 
 @router.get("/api/stats/question-format")
-async def question_format(year: int = None):
+async def question_format(
+    year_mode: str = "all",
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    university_class: List[str] = Query(default=[]),
+    region: List[str] = Query(default=[]),
+):
     """設問形式の大学別比較データ（JSON）。"""
     conn = get_connection()
     try:
-        where = "WHERE 1=1"
-        params: list = []
-        if year:
-            where += " AND year = ?"
-            params.append(year)
+        extra, filter_params = build_filter_where(
+            year_mode=year_mode, year_from=year_from, year_to=year_to,
+            university_class=list(university_class), region=list(region),
+        )
+        where = f"WHERE 1=1{extra}"
+        params: list = filter_params
 
         rows = conn.execute(
             f"""SELECT university,

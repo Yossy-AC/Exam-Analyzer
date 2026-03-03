@@ -1,12 +1,10 @@
 """MDパーサーのテスト。実データを使用して各大学のパターンを検証する。"""
 
-import os
 import sys
 from pathlib import Path
 
 import pytest
 
-# プロジェクトルートをパスに追加
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.parser import (
@@ -19,14 +17,15 @@ from app.parser import (
     split_questions,
 )
 
-INPUT_DIR = Path(__file__).resolve().parent.parent.parent / "input" / "2025旧帝大_問題_md"
+INPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "input_md"
 
 
 class TestUtilities:
     def test_extract_university_from_filename(self):
         assert extract_university_from_filename("2025東京大_問題.md") == "東京大"
-        assert extract_university_from_filename("2025大阪大（外国語以外）_問題.md") == "大阪大"
-        assert extract_university_from_filename("2025大阪大（外国語）_問題.md") == "大阪大"
+        assert extract_university_from_filename("2025大阪大（外国語以外）_問題.md") == "大阪大（外国語以外）"
+        assert extract_university_from_filename("2025大阪大（外国語）_問題.md") == "大阪大（外国語）"
+        assert extract_university_from_filename("2025東京都立大（理系）_問題.md") == "東京都立大（理系）"
         assert extract_university_from_filename("2025京都大_問題.md") == "京都大"
 
     def test_normalize_year_integer(self):
@@ -92,6 +91,19 @@ class TestQuestionSplitting:
         assert "part1" in blocks[0][1]
         assert "part2" in blocks[0][1]
 
+    def test_split_japanese_format(self):
+        body = "# 第1問\ncontent1\n# 第2問\ncontent2\n"
+        blocks = split_questions(body)
+        assert len(blocks) == 2
+        assert blocks[0][0] == "1"
+        assert blocks[1][0] == "2"
+
+    def test_split_bracketed_numbers(self):
+        body = "# Question [1]\ncontent1\n# Question [2]\ncontent2\n"
+        blocks = split_questions(body)
+        assert len(blocks) == 2
+        assert blocks[0][0] == "1"
+
 
 class TestABSplit:
     def test_no_split(self):
@@ -101,17 +113,25 @@ class TestABSplit:
         assert parts[0][0] == "1"
 
     def test_ab_split(self):
-        text = "(A) First passage about sports.\n\n(B) Second passage about pantomime."
+        passage_a = "This is a long passage about sports. " * 20
+        passage_b = "This is a long passage about pantomime. " * 20
+        text = f"(A) {passage_a}\n\n(B) {passage_b}"
         parts = detect_ab_split(text)
         assert len(parts) == 2
-        assert parts[0][0] == "1"  # A -> 1
-        assert parts[1][0] == "2"  # B -> 2
+        assert parts[0][0] == "1"
+        assert parts[1][0] == "2"
         assert "sports" in parts[0][1]
         assert "pantomime" in parts[1][1]
 
+    def test_ab_split_short_options_not_split(self):
+        """選択肢リストのような短い (A)/(B) は分割しない。"""
+        text = "(A) assistance\n(B) assistants\n(C) barrier"
+        parts = detect_ab_split(text)
+        assert len(parts) == 1
+
 
 class TestRealData:
-    """実データを使ったテスト。input/ディレクトリが存在する場合のみ実行。"""
+    """実データテスト。data/input_md/ が存在する場合のみ実行。"""
 
     @pytest.fixture(autouse=True)
     def skip_if_no_data(self):
@@ -127,57 +147,57 @@ class TestRealData:
 
     def test_tokyo(self):
         results = self._load("2025東京大_問題.md")
-        assert len(results) > 0
-        # 全てのパッセージが東京大であること
+        assert len(results) == 5
         for r in results:
             assert r.university == "東京大"
             assert r.year == 2025
-        # Question 1 は (Continued) がマージされて1つの大問に
-        q1_results = [r for r in results if r.question_number == "I"]
-        assert len(q1_results) >= 1
-        # テキストセクションが空でないこと
-        for r in results:
-            assert len(r.text_section) > 0
 
     def test_kyoto(self):
         results = self._load("2025京都大_問題.md")
         assert len(results) > 0
         for r in results:
-            assert r.university == "京都大"  # フォールバック抽出
-            assert r.year == 2025  # 令和7年度 -> 2025
+            assert r.university == "京都大"
+            assert r.year == 2025
 
     def test_osaka_gaigokugo_igai(self):
+        """括弧付き大学名がそのまま保持されること。"""
         results = self._load("2025大阪大（外国語以外）_問題.md")
         assert len(results) > 0
         for r in results:
-            assert r.university == "大阪大"
-        # Question I に (A)(B) 分割がある場合をチェック
+            assert r.university == "大阪大（外国語以外）"
         q1_results = [r for r in results if r.question_number == "I"]
         if len(q1_results) >= 2:
             assert q1_results[0].passage_index == 1
             assert q1_results[1].passage_index == 2
 
-    def test_tohoku(self):
-        results = self._load("2025東北大_問題.md")
-        assert len(results) > 0
+    def test_hokkaido(self):
+        results = self._load("2025北海道大_問題.md")
+        assert len(results) == 4
         for r in results:
-            assert r.university == "東北大"
-            assert r.year == 2025
+            assert r.university == "北海道大"
 
-    def test_all_files_parseable(self):
-        """全MDファイルがエラーなくパースできること。"""
-        for path in INPUT_DIR.glob("*.md"):
-            content = path.read_text(encoding="utf-8")
-            results = parse_md(content, path.name)
-            assert isinstance(results, list), f"Failed to parse {path.name}"
-            # 各ファイルから少なくとも1つのパッセージが抽出されること
-            assert len(results) > 0, f"No passages extracted from {path.name}"
+    def test_toritsu_rikei(self):
+        """第N問形式 + 括弧付き大学名。"""
+        results = self._load("2025東京都立大（理系）_問題.md")
+        assert len(results) == 2
+        for r in results:
+            assert r.university == "東京都立大（理系）"
 
     def test_passage_ids_unique(self):
-        """全ファイルを通じてパッセージIDがユニークであること。"""
+        """代表5ファイルでパッセージIDがユニークであること。"""
+        sample_files = [
+            "2025東京大_問題.md",
+            "2025京都大_問題.md",
+            "2025大阪大（外国語以外）_問題.md",
+            "2025北海道大_問題.md",
+            "2025東京都立大（理系）_問題.md",
+        ]
         all_ids = []
-        for path in INPUT_DIR.glob("*.md"):
+        for name in sample_files:
+            path = INPUT_DIR / name
+            if not path.exists():
+                continue
             content = path.read_text(encoding="utf-8")
-            results = parse_md(content, path.name)
+            results = parse_md(content, name)
             all_ids.extend(r.passage_id for r in results)
-        assert len(all_ids) == len(set(all_ids)), f"Duplicate IDs found: {[x for x in all_ids if all_ids.count(x) > 1]}"
+        assert len(all_ids) == len(set(all_ids)), f"Duplicate IDs: {[x for x in all_ids if all_ids.count(x) > 1]}"

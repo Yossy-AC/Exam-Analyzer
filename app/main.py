@@ -8,6 +8,7 @@ import logging
 import os
 import secrets
 import time
+from datetime import datetime
 
 import bcrypt
 from fastapi import FastAPI, Request
@@ -19,13 +20,15 @@ from app.config import (
     ADMIN_PASSWORD_HASH,
     COMP_TYPE_LIST,
     GENRE_MAIN_LIST,
+    REGION_LIST,
     SECRET_KEY,
     SESSION_MAX_AGE,
     TEXT_STYLE_LIST,
     TEXT_TYPE_LIST,
+    UNIVERSITY_CLASS_LIST,
 )
-from app.db import get_connection, init_db
-from app.routers import dashboard, export, passages, upload
+from app.db import get_all_universities, get_connection, init_db
+from app.routers import dashboard, export, passages, universities, upload
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,6 +48,7 @@ app.include_router(upload.router)
 app.include_router(passages.router)
 app.include_router(dashboard.router)
 app.include_router(export.router)
+app.include_router(universities.router)
 
 PUBLIC_PATHS = ("/login", "/static", "/favicon.ico")
 
@@ -131,11 +135,28 @@ async def logout():
     return response
 
 
+@app.get("/partials/university-settings", response_class=HTMLResponse)
+async def university_settings_partial(request: Request):
+    conn = get_connection()
+    try:
+        univs = get_all_universities(conn)
+    finally:
+        conn.close()
+    return templates.TemplateResponse(
+        "partials/university_settings.html",
+        {
+            "request": request,
+            "universities": univs,
+            "university_class_list": UNIVERSITY_CLASS_LIST,
+            "region_list": REGION_LIST,
+        },
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     conn = get_connection()
     try:
-        # フィルタ用のデータ取得
         years = [r["year"] for r in conn.execute("SELECT DISTINCT year FROM passages ORDER BY year DESC").fetchall()]
         universities = [r["university"] for r in conn.execute("SELECT DISTINCT university FROM passages ORDER BY university").fetchall()]
         total = conn.execute("SELECT COUNT(*) as cnt FROM passages").fetchone()["cnt"]
@@ -154,6 +175,9 @@ async def index(request: Request):
             "text_type_list": TEXT_TYPE_LIST,
             "text_style_list": TEXT_STYLE_LIST,
             "comp_type_list": COMP_TYPE_LIST,
+            "university_class_list": UNIVERSITY_CLASS_LIST,
+            "region_list": REGION_LIST,
+            "current_year": datetime.now().year,
             "total": total,
             "reviewed": reviewed,
         },

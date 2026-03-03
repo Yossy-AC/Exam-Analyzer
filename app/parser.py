@@ -11,13 +11,14 @@ from app.models import ParsedQuestion
 
 
 def extract_university_from_filename(filename: str) -> str:
-    """ファイル名から大学名を抽出（フロントマター異常時のフォールバック）。
+    """ファイル名から大学名を抽出（括弧付き名称を含む）。
 
     Examples:
         '2025東京大_問題.md' -> '東京大'
-        '2025大阪大（外国語以外）_問題.md' -> '大阪大'
+        '2025大阪大（外国語以外）_問題.md' -> '大阪大（外国語以外）'
+        '2025東京都立大（理系）_問題.md' -> '東京都立大（理系）'
     """
-    match = re.match(r"\d{4}(.+?)(?:[（(].+?[）)])?_問題", filename)
+    match = re.match(r"\d{4}(.+?)_問題", filename)
     return match.group(1) if match else filename.replace(".md", "")
 
 
@@ -79,9 +80,10 @@ def split_questions(body: str) -> list[tuple[str, str]]:
         question_identifier は '1', 'I', '2', 'II' などの番号部分
     """
     # `# Question 1`, `# Question I`, `# Question [1]`, `# Question 1 (Continued)` にマッチ
+    # `# 第1問`, `# 第2問` 等の日本語形式にも対応
     # `# Question [ ]` のような不正パターンは除外
     pattern = re.compile(
-        r"^# Question\s+\[?([IVX]+|\d+)\]?(?:\s+\(Continued\))?\s*$", re.MULTILINE
+        r"^# (?:Question\s+\[?([IVX]+|\d+)\]?(?:\s+\(Continued\))?|第(\d+)問)\s*$", re.MULTILINE
     )
     matches = list(pattern.finditer(body))
     if not matches:
@@ -89,7 +91,8 @@ def split_questions(body: str) -> list[tuple[str, str]]:
 
     blocks: list[tuple[str, str, bool]] = []
     for i, m in enumerate(matches):
-        q_id = m.group(1)
+        # group(1): Question形式, group(2): 第N問形式
+        q_id = m.group(1) or m.group(2)
         is_continued = "(Continued)" in m.group(0)
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
@@ -114,7 +117,8 @@ def extract_text_section(block: str) -> str:
     複数の ## Text がある場合は連結する（東京大 Q1 の(A)(B)対応）。
     Text が空（[ ] のみ等）の場合、## Data → ## Instructions の順にフォールバック。
     """
-    SECTION_BOUNDARY = r"^## (?:Questions|Vocabulary|Data|Instructions|Text)\s*$"
+    # 任意の ## ヘッダーをセクション境界とする（Options, Part A 等にも対応）
+    SECTION_BOUNDARY = r"^## \S"
 
     # 全 ## Text セクションを収集
     text_parts = []
@@ -144,7 +148,7 @@ def extract_text_section(block: str) -> str:
     inst_match = re.search(r"^## Instructions\s*\n", block, re.MULTILINE)
     if inst_match:
         start = inst_match.end()
-        next_section = re.search(r"^## ", block[start:], re.MULTILINE)
+        next_section = re.search(SECTION_BOUNDARY, block[start:], re.MULTILINE)
         end = start + next_section.start() if next_section else len(block)
         return block[start:end].strip()
 
@@ -157,7 +161,8 @@ def extract_questions_section(block: str) -> str:
     全 ## Instructions + ## Data + ## Questions を結合して返す。
     これにより要約指示・英作文指示・視覚情報なども設問分析に含まれる。
     """
-    SECTION_BOUNDARY = r"^## (?:Questions|Vocabulary|Data|Instructions|Text)\s*$"
+    # 任意の ## ヘッダーをセクション境界とする
+    SECTION_BOUNDARY = r"^## \S"
     parts = []
 
     # 全 ## Instructions セクション（設問指示: 要約せよ、日本語で説明しなさい等）
@@ -182,7 +187,20 @@ def extract_questions_section(block: str) -> str:
     # ## Questions セクション
     q_match = re.search(r"^## Questions\s*\n", block, re.MULTILINE)
     if q_match:
-        content = block[q_match.end():].strip()
+        start = q_match.end()
+        next_section = re.search(SECTION_BOUNDARY, block[start:], re.MULTILINE)
+        end = start + next_section.start() if next_section else len(block)
+        content = block[start:end].strip()
+        if content:
+            parts.append(content)
+
+    # ## Options セクション（選択肢リスト）
+    opt_match = re.search(r"^## Options\s*\n", block, re.MULTILINE)
+    if opt_match:
+        start = opt_match.end()
+        next_section = re.search(SECTION_BOUNDARY, block[start:], re.MULTILINE)
+        end = start + next_section.start() if next_section else len(block)
+        content = block[start:end].strip()
         if content:
             parts.append(content)
 
@@ -193,6 +211,7 @@ def detect_ab_split(text: str) -> list[tuple[str, str]]:
     """テキスト内の (A)/(B) 分割を検出する。
 
     大阪大のように、Text内に独立した(A)(B)パッセージがある場合に分割する。
+    選択肢リスト（各項目が短い）は分割しない。
     """
     # (A) で始まるブロックを検出
     parts = re.split(r"(?m)^(\([A-Z]\))", text)
@@ -208,13 +227,18 @@ def detect_ab_split(text: str) -> list[tuple[str, str]]:
         result.append((passage_idx, content.strip()))
         idx += 2
 
-    return result if len(result) >= 2 else [("1", text)]
+    # 各パートが十分な長さ（100語以上）の場合のみ分割とみなす
+    # 短い場合は選択肢リストやオプション一覧の可能性が高い
+    if len(result) >= 2:
+        avg_words = sum(len(c.split()) for _, c in result) / len(result)
+        if avg_words >= 100:
+            return result
+
+    return [("1", text)]
 
 
-def generate_passage_id(year: int, university: str, question_number: str, passage_index: int, faculty: str = "") -> str:
-    """パッセージIDを生成する。facultyがある場合はIDに含めて一意性を確保。"""
-    if faculty:
-        return f"{year}_{university}_{faculty}_{question_number}_{passage_index}"
+def generate_passage_id(year: int, university: str, question_number: str, passage_index: int) -> str:
+    """パッセージIDを生成する。"""
     return f"{year}_{university}_{question_number}_{passage_index}"
 
 
@@ -222,29 +246,16 @@ def parse_md(content: str, filename: str) -> list[ParsedQuestion]:
     """MDファイルをパースし、大問ごとのParsedQuestionリストを返す。"""
     fm, body = parse_frontmatter(content)
 
-    # フロントマター正規化
-    university = fm.get("university", "") or ""
-    university = str(university)
-    if not university or university == "(不明)" or "不明" in university:
-        university = extract_university_from_filename(filename)
-    # 「大阪大（外国語）」→ 大学名は「大阪大」、括弧内はfacultyへ
-    uni_match = re.match(r"^(.+?)[（(](.+?)[）)]$", university)
-    if uni_match:
-        university = uni_match.group(1)
-        # facultyが空ならフロントマターの括弧情報をfacultyに
-        if not fm.get("faculty"):
-            fm["faculty"] = uni_match.group(2)
+    # 大学名は常にファイル名から取得（括弧付き名称をそのまま使用）
+    university = extract_university_from_filename(filename)
 
     year = normalize_year(fm.get("year", ""))
     if year is None:
-        # ファイル名からフォールバック
         m = re.match(r"(\d{4})", filename)
         year = int(m.group(1)) if m else 0
 
-    faculty = fm.get("faculty", "") or ""
-    if isinstance(faculty, list):
-        faculty = ", ".join(str(f) for f in faculty) if faculty else ""
-    faculty = str(faculty)
+    # facultyは使用しない（括弧部分が大学名に含まれるため）
+    faculty = ""
 
     # 大問分割
     question_blocks = split_questions(body)
@@ -264,7 +275,7 @@ def parse_md(content: str, filename: str) -> list[ParsedQuestion]:
         ab_parts = detect_ab_split(text)
         for passage_idx_str, passage_text in ab_parts:
             passage_idx = int(passage_idx_str)
-            pid = generate_passage_id(year, university, q_num, passage_idx, faculty)
+            pid = generate_passage_id(year, university, q_num, passage_idx)
             results.append(
                 ParsedQuestion(
                     university=university,

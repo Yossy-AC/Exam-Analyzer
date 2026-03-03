@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pip install -r requirements.txt)"
+      "Bash(pip install -r requirements.txt)",
+      "Bash(grep -h \"^## \" data/input_md/*.md)",
+      "Bash(uvicorn app.main:app --reload --host 0.0.0.0 --port 8000)",
+      "Bash(tasklist)",
+      "Bash(taskkill /F /PID 11408 /PID 16208 /PID 14348 /PID 1680 /PID 8484 /PID 17772 /PID 8128)",
+      "Bash(cmd /c \"taskkill /F /PID 11408 & taskkill /F /PID 16208 & taskkill /F /PID 14348 & taskkill /F /PID 1680 & taskkill /F /PID 8484 & taskkill /F /PID 17772 & taskkill /F /PID 8128\")",
+      "Bash(cmd /c \"taskkill /F /PID 11408 2>&1 & taskkill /F /PID 16208 2>&1 & taskkill /F /PID 14348 2>&1 & taskkill /F /PID 1680 2>&1 & taskkill /F /PID 8484 2>&1 & taskkill /F /PID 17772 2>&1 & taskkill /F /PID 8128 2>&1\")",
+      "Bash(cmd /c \"for %p in \\(11408 16208 14348 1680 8484 17772 8128\\) do taskkill /F /PID %p\")",
+      "Bash(powershell -Command \"Stop-Process -Id 11408,16208,14348,1680,8484,17772,8128 -Force -ErrorAction SilentlyContinue; Write-Host ''Done''\")",
+      "Bash(powershell -Command \"Get-Process -Id 11408,16208,14348,1680,8484,17772,8128 | Select-Object Id,Name,CPU,WorkingSet,StartTime | Format-Table\")"
     ]
   }
 }

@@ -1,0 +1,66 @@
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-label">総データ数</div>
+        <div class="kpi-value">{{ total_passages }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">大学数</div>
+        <div class="kpi-value">{{ total_universities }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">年度範囲</div>
+        <div class="kpi-value" style="font-size:20px;">{{ year_min }}〜{{ year_max }}</div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-section">
+        <h4>問題形式分布</h4>
+        <canvas id="dash-texttype-chart" height="120"></canvas>
+    </div>
+
+    {% if top_genres %}
+    <div class="dashboard-section">
+        <h4>長文ジャンル上位</h4>
+        <table class="table table-compact">
+            <thead>
+                <tr><th>ジャンル</th><th>件数</th></tr>
+            </thead>
+            <tbody>
+                {% for item in top_genres %}
+                <tr>
+                    <td>{{ item.genre }}</td>
+                    <td class="center">{{ item.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    const ctx = document.getElementById('dash-texttype-chart');
+    if (!ctx) return;
+    new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: {{ text_type_dist.labels | tojson }},
+            datasets: [{
+                data: {{ text_type_dist.data | tojson }},
+                backgroundColor: ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2']
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: true, anchor: 'end', align: 'end', color: '#555', font: { size: 11 } }
+            },
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+})();
+</script>
