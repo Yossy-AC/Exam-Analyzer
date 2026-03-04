@@ -58,7 +58,7 @@ def _parse_json_response(text: str) -> dict:
 
 async def _call_claude(system: str, user: str) -> str:
     """Claude APIを呼び出して応答テキストを返す。"""
-    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY, timeout=60.0)
     async with _semaphore:
         response = await client.messages.create(
             model=CLAUDE_MODEL,

@@ -88,15 +88,14 @@ async def update_passage(request: Request, passage_id: str):
     try:
         updates = []
         params = []
-        for key in (
-            "text_type", "text_style", "genre_main", "genre_sub", "theme",
-            "comp_type", "notes",
-        ):
-            if key in form:
+        # ホワイトリスト: フォームから受け付けるカラム名（SQLインジェクション防止）
+        _TEXT_COLS = {"text_type", "text_style", "genre_main", "genre_sub", "theme", "comp_type", "notes"}
+        _BOOL_COLS = {"has_jp_written", "has_en_written", "has_summary", "reviewed"}
+        for key in form:
+            if key in _TEXT_COLS:
                 updates.append(f"{key} = ?")
                 params.append(form[key])
-        for key in ("has_jp_written", "has_en_written", "has_summary", "reviewed"):
-            if key in form:
+            elif key in _BOOL_COLS:
                 updates.append(f"{key} = ?")
                 params.append(1 if form[key] in ("true", "1", "on") else 0)
 

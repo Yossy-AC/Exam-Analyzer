@@ -67,7 +67,13 @@ async def export_csv(year: int = None, university: str = None, genre_main: str =
     )
     writer.writeheader()
     for row in rows:
-        writer.writerow(dict(row))
+        safe_row = {}
+        for k, v in dict(row).items():
+            # CSV数式インジェクション対策: Excel で数式として実行される文字をエスケープ
+            if isinstance(v, str) and v and v[0] in ("=", "+", "-", "@", "\t", "\r"):
+                v = "'" + v
+            safe_row[k] = v
+        writer.writerow(safe_row)
 
     return Response(
         content=output.getvalue().encode("utf-8-sig"),

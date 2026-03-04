@@ -8,6 +8,7 @@ import logging
 import os
 import secrets
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 import bcrypt
@@ -33,7 +34,13 @@ from app.routers import dashboard, export, passages, universities, upload
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="入試問題分析システム")
+@asynccontextmanager
+async def lifespan(app):
+    init_db()
+    logger.info("Database initialized")
+    yield
+
+app = FastAPI(title="入試問題分析システム", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -71,12 +78,6 @@ def _verify_session_token(token: str) -> bool:
         return hmac.compare_digest(token, expected)
     except (ValueError, AttributeError):
         return False
-
-
-@app.on_event("startup")
-async def startup():
-    init_db()
-    logger.info("Database initialized")
 
 
 @app.middleware("http")
