@@ -4,19 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>入試問題分析システム</title>
+    <base href="{{ base_href | default('/') }}">
     <script src="https://unpkg.com/htmx.org@2.0.3"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
     <header>
         <h1>入試問題分析システム</h1>
         <nav>
-            <a href="/api/export/csv" class="btn btn-sm">CSV出力</a>
-            <a href="/api/export/json" class="btn btn-sm">JSON出力</a>
-            <a href="/api/export/db" class="btn btn-sm">DB保存</a>
+            <a href="api/export/csv" class="btn btn-sm">CSV出力</a>
+            <a href="api/export/json" class="btn btn-sm">JSON出力</a>
+            <a href="api/export/db" class="btn btn-sm">DB保存</a>
             {% if admin_password_set %}
-            <form action="/logout" method="post" style="display:inline">
+            <form action="logout" method="post" style="display:inline">
                 <button type="submit" class="btn btn-sm btn-danger">ログアウト</button>
             </form>
             {% endif %}

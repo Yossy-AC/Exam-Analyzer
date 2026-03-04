@@ -57,7 +57,7 @@
         <!-- タブ1: アップロード -->
         <div class="tab-panel active" id="tab-upload">
             <form id="upload-form"
-                  hx-post="/api/upload"
+                  hx-post="api/upload"
                   hx-target="#upload-results"
                   hx-encoding="multipart/form-data">
                 <div id="dropzone"
@@ -72,7 +72,7 @@
             </form>
             <div id="upload-results"></div>
             <div id="job-status"
-                 hx-get="/api/jobs"
+                 hx-get="api/jobs"
                  hx-trigger="load, every 5s"
                  hx-target="#job-status"></div>
         </div>
@@ -171,7 +171,7 @@
             <div class="compare-section">
                 <h4>大学 × ジャンル ヒートマップ</h4>
                 <div id="heatmap-content"
-                     hx-get="/api/stats/heatmap"
+                     hx-get="api/stats/heatmap"
                      hx-trigger="revealed"></div>
             </div>
             <div class="compare-section" style="margin-top:24px">
@@ -184,7 +184,7 @@
         <div class="tab-panel" id="tab-records">
             <div class="bulk-actions">
                 <h4>一括置換</h4>
-                <form hx-post="/api/passages/bulk-replace" hx-target="#records-table">
+                <form hx-post="api/passages/bulk-replace" hx-target="#records-table">
                     <select name="field">
                         <option value="genre_main">ジャンル</option>
                         <option value="genre_sub">サブジャンル</option>
@@ -220,7 +220,7 @@
                 </div>
             </div>
             <div id="records-table"
-                 hx-get="/api/passages"
+                 hx-get="api/passages"
                  hx-trigger="revealed"></div>
         </div>
     </section>
@@ -270,13 +270,13 @@ function applyFilters() {
         if (el && el.value) params.set(key, el.value);
     }
     const qs = params.toString();
-    htmx.ajax('GET', '/api/passages?' + qs, '#records-table');
+    htmx.ajax('GET', 'api/passages?' + qs, '#records-table');
     const activeTab = document.querySelector('.tab.active');
     if (activeTab) {
         if (activeTab.dataset.tab === 'reading') loadReadingStats();
         if (activeTab.dataset.tab === 'composition') loadCompositionStats();
         if (activeTab.dataset.tab === 'compare') {
-            htmx.ajax('GET', '/api/stats/heatmap?' + qs, '#heatmap-content');
+            htmx.ajax('GET', 'api/stats/heatmap?' + qs, '#heatmap-content');
             loadQuestionFormat();
         }
     }
@@ -304,7 +304,7 @@ function doughnutConfig(labels, data, colors) {
 function loadUniversityProfile() {
     const uni = document.getElementById('profile-university').value;
     const year = document.getElementById('filter-year').value;
-    let url = '/api/stats/university-profile?university=' + encodeURIComponent(uni);
+    let url = 'api/stats/university-profile?university=' + encodeURIComponent(uni);
     if (year) url += '&year=' + year;
     htmx.ajax('GET', url, '#profile-content');
 }
@@ -317,7 +317,7 @@ async function loadReadingStats() {
     if (year) params.set('year', year);
     if (uni) params.set('university', uni);
 
-    const res = await fetch('/api/stats/reading-stats?' + params.toString());
+    const res = await fetch('api/stats/reading-stats?' + params.toString());
     const data = await res.json();
 
     createChart('reading-genre-chart', doughnutConfig(data.genre.labels, data.genre.data, data.genre.colors));
@@ -355,7 +355,7 @@ async function loadCompositionStats() {
     if (year) params.set('year', year);
     if (uni) params.set('university', uni);
 
-    const res = await fetch('/api/stats/composition-stats?' + params.toString());
+    const res = await fetch('api/stats/composition-stats?' + params.toString());
     const data = await res.json();
 
     createChart('comp-presence-chart', doughnutConfig(data.presence.labels, data.presence.data, ['#59a14f','#dee2e6']));
@@ -372,7 +372,7 @@ async function loadYearlyTrend() {
     const uni = document.getElementById('yearly-university').value;
     if (!uni) return;
 
-    const res = await fetch('/api/stats/yearly-trend?university=' + encodeURIComponent(uni));
+    const res = await fetch('api/stats/yearly-trend?university=' + encodeURIComponent(uni));
     const data = await res.json();
     if (data.empty) return;
 
@@ -395,7 +395,7 @@ async function loadQuestionFormat() {
     const year = document.getElementById('filter-year').value;
     if (year) params.set('year', year);
 
-    const res = await fetch('/api/stats/question-format?' + params.toString());
+    const res = await fetch('api/stats/question-format?' + params.toString());
     const data = await res.json();
 
     createChart('qformat-chart', {
@@ -420,16 +420,16 @@ async function bulkDeletePassages() {
     }
 
     try {
-        const response = await fetch(`/api/passages?year=${encodeURIComponent(year)}&university=${encodeURIComponent(university)}`, {
+        const response = await fetch(`api/passages?year=${encodeURIComponent(year)}&university=${encodeURIComponent(university)}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
             alert('削除しました');
             // records-table を更新
-            htmx.ajax('GET', '/api/passages', '#records-table');
+            htmx.ajax('GET', 'api/passages', '#records-table');
             // job-status も更新（Upload タブの読み込み状態を同期）
-            htmx.ajax('GET', '/api/jobs', '#job-status');
+            htmx.ajax('GET', 'api/jobs', '#job-status');
         } else {
             const text = await response.text();
             alert('削除に失敗しました: ' + text);
@@ -446,12 +446,12 @@ async function deleteAllPassages() {
     }
 
     try {
-        const response = await fetch('/api/passages/delete-all', { method: 'POST' });
+        const response = await fetch('api/passages/delete-all', { method: 'POST' });
         if (response.ok) {
             const data = await response.json();
             alert(data.count + '件のデータを削除しました');
-            htmx.ajax('GET', '/api/passages', '#records-table');
-            htmx.ajax('GET', '/api/jobs', '#job-status');
+            htmx.ajax('GET', 'api/passages', '#records-table');
+            htmx.ajax('GET', 'api/jobs', '#job-status');
         } else {
             alert('削除に失敗しました');
         }

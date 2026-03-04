@@ -34,6 +34,12 @@ app = FastAPI(title="入試問題分析システム")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+
+def _base_href(request: Request) -> str:
+    """ポータル経由の場合は X-Portal-Prefix からベースパスを返す。スタンドアロンは /"""
+    prefix = request.headers.get("X-Portal-Prefix", "")
+    return f"{prefix}/" if prefix else "/"
+
 # ルーター登録
 app.include_router(upload.router)
 app.include_router(passages.router)
@@ -91,7 +97,7 @@ async def auth_middleware(request: Request, call_next):
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse("login.html", {"request": request, "base_href": _base_href(request)})
 
 
 @app.post("/login")
@@ -114,7 +120,7 @@ async def login(request: Request):
 
     return templates.TemplateResponse(
         "login.html",
-        {"request": request, "error": "パスワードが正しくありません"},
+        {"request": request, "error": "パスワードが正しくありません", "base_href": _base_href(request)},
     )
 
 
@@ -141,6 +147,7 @@ async def index(request: Request):
         "index.html",
         {
             "request": request,
+            "base_href": _base_href(request),
             "years": years,
             "universities": universities,
             "genre_list": GENRE_MAIN_LIST,
