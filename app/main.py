@@ -75,6 +75,10 @@ async def auth_middleware(request: Request, call_next):
     if not ADMIN_PASSWORD_HASH:
         return await call_next(request)
 
+    # ポータル経由の場合はスキップ（Caddyのforward_authが認証済み）
+    if os.environ.get("BEHIND_PORTAL") == "true" and request.headers.get("X-Portal-Role"):
+        return await call_next(request)
+
     if any(request.url.path.startswith(p) for p in PUBLIC_PATHS):
         return await call_next(request)
 
