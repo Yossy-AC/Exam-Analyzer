@@ -22,7 +22,12 @@ EXPORT_COLUMNS = [
     "text_type", "text_style", "word_count",
     "source_title", "source_author", "source_year",
     "genre_main", "genre_sub", "theme",
-    "has_jp_written", "has_en_written", "has_summary", "comp_type",
+    "has_jp_written", "has_en_written", "has_summary",
+    "has_wabun_eiyaku", "has_jiyu_eisakubun",
+    "has_jp_translation", "has_jp_explanation", "has_en_explanation",
+    "has_jp_summary", "has_en_summary",
+    "has_visual_info", "visual_info_type",
+    "low_confidence", "low_confidence_fields",
     "reviewed", "notes",
 ]
 

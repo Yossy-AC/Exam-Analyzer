@@ -13,6 +13,7 @@
                     <th>抽出数</th>
                     <th>エラー内容</th>
                     <th>日時</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -29,6 +30,7 @@
                     <td style="text-align:center;">{{ job.passages_created }}</td>
                     <td style="color:#666;">{{ job.error_message or '' }}</td>
                     <td style="white-space:nowrap; color:#888;">{{ job.created_at[:16] if job.created_at else '' }}</td>
+                    <td><button class="btn btn-sm" style="font-size:11px; padding:1px 6px;" onclick="dismissJob({{ job.id }}, this)">✕</button></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -84,3 +86,16 @@
     <p style="color:#888; font-size:13px;">問題ありません</p>
     {% endif %}
 </div>
+
+<script>
+async function dismissJob(jobId, btn) {
+    const row = btn.closest('tr');
+    try {
+        const res = await fetch(BASE + 'api/review-list/job/' + jobId, {method: 'DELETE'});
+        if (!res.ok) throw new Error('削除失敗');
+        row.remove();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+</script>

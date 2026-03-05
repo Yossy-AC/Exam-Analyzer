@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS passages (
     has_jp_written BOOLEAN DEFAULT 0,
     has_en_written BOOLEAN DEFAULT 0,
     has_summary BOOLEAN DEFAULT 0,
-    comp_type TEXT DEFAULT 'none',
+    has_wabun_eiyaku BOOLEAN DEFAULT 0,
+    has_jiyu_eisakubun BOOLEAN DEFAULT 0,
 
     has_jp_translation BOOLEAN DEFAULT 0,
     has_jp_explanation BOOLEAN DEFAULT 0,
@@ -46,6 +47,9 @@ CREATE TABLE IF NOT EXISTS passages (
 
     has_visual_info BOOLEAN DEFAULT 0,
     visual_info_type TEXT DEFAULT '',
+
+    low_confidence BOOLEAN DEFAULT 0,
+    low_confidence_fields TEXT DEFAULT '',
 
     reviewed BOOLEAN DEFAULT 0,
     notes TEXT DEFAULT '',
@@ -116,10 +120,25 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
         ("has_en_explanation", "BOOLEAN DEFAULT 0"),
         ("has_jp_summary", "BOOLEAN DEFAULT 0"),
         ("has_en_summary", "BOOLEAN DEFAULT 0"),
+        ("low_confidence", "BOOLEAN DEFAULT 0"),
+        ("low_confidence_fields", "TEXT DEFAULT ''"),
     ]
     for col, typedef in migrations:
         if col not in existing:
             conn.execute(f"ALTER TABLE passages ADD COLUMN {col} {typedef}")
+
+    # comp_type → has_wabun_eiyaku / has_jiyu_eisakubun マイグレーション
+    if "comp_type" in existing and "has_wabun_eiyaku" not in existing:
+        conn.execute("ALTER TABLE passages ADD COLUMN has_wabun_eiyaku BOOLEAN DEFAULT 0")
+        conn.execute("ALTER TABLE passages ADD COLUMN has_jiyu_eisakubun BOOLEAN DEFAULT 0")
+        conn.execute("UPDATE passages SET has_wabun_eiyaku = 1 WHERE comp_type = '和文英訳'")
+        conn.execute("UPDATE passages SET has_jiyu_eisakubun = 1 WHERE comp_type = '自由英作文'")
+        conn.commit()
+
+    # analysis_jobsテーブルへのカラム追加
+    jobs_existing = {row[1] for row in conn.execute("PRAGMA table_info(analysis_jobs)").fetchall()}
+    if "reviewed" not in jobs_existing:
+        conn.execute("ALTER TABLE analysis_jobs ADD COLUMN reviewed BOOLEAN DEFAULT 0")
 
     # 旧UNIQUE制約（faculty含む）からの移行
     idx_info = conn.execute("PRAGMA index_list(passages)").fetchall()
@@ -150,7 +169,8 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
                     has_jp_written BOOLEAN DEFAULT 0,
                     has_en_written BOOLEAN DEFAULT 0,
                     has_summary BOOLEAN DEFAULT 0,
-                    comp_type TEXT DEFAULT 'none',
+                    has_wabun_eiyaku BOOLEAN DEFAULT 0,
+    has_jiyu_eisakubun BOOLEAN DEFAULT 0,
                     has_jp_translation BOOLEAN DEFAULT 0,
                     has_jp_explanation BOOLEAN DEFAULT 0,
                     has_en_explanation BOOLEAN DEFAULT 0,
@@ -158,6 +178,8 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
                     has_en_summary BOOLEAN DEFAULT 0,
                     has_visual_info BOOLEAN DEFAULT 0,
                     visual_info_type TEXT DEFAULT '',
+                    low_confidence BOOLEAN DEFAULT 0,
+                    low_confidence_fields TEXT DEFAULT '',
                     reviewed BOOLEAN DEFAULT 0,
                     notes TEXT DEFAULT '',
                     extracted_at TEXT DEFAULT (datetime('now')),

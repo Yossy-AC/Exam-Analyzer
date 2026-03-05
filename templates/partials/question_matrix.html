@@ -10,7 +10,8 @@
             <th>和訳</th>
             <th>英訳</th>
             <th>要約</th>
-            <th>作文種別</th>
+            <th>和文英訳</th>
+            <th>自由英作</th>
         </tr>
     </thead>
     <tbody>
@@ -24,7 +25,8 @@
             <td class="center">{{ '○' if p.has_jp_written else '×' }}</td>
             <td class="center">{{ '○' if p.has_en_written else '×' }}</td>
             <td class="center">{{ '○' if p.has_summary else '×' }}</td>
-            <td>{{ p.comp_type if p.comp_type != 'none' else '-' }}</td>
+            <td class="center">{{ '○' if p.has_wabun_eiyaku else '' }}</td>
+            <td class="center">{{ '○' if p.has_jiyu_eisakubun else '' }}</td>
         </tr>
         {% endfor %}
     </tbody>

@@ -7,20 +7,23 @@
 - **バックエンド**: FastAPI (Python 3.12)
 - **フロントエンド**: HTMX + Jinja2 + Chart.js
 - **DB**: SQLite (単一ファイル `data/exam.db`)
-- **分類API**: Claude Sonnet (`claude-sonnet-4-20250514`)、2回分割呼び出し
+- **分類API**: 大学クラスに応じてモデルを自動選択（統合プロンプトで1回呼び出し）
+  - 旧帝大・難関大・準難関大 → Claude Opus (`claude-opus-4-6`)
+  - その他 → Claude Sonnet (`claude-sonnet-4-6`)
 - **デプロイ**: Fly.io (東京リージョン nrt)
 
 ## ディレクトリ構成
 ```
-exam-text-classifier/
+exam-analyzer/
 ├── app/                    # FastAPIアプリケーション
 │   ├── main.py             # エントリポイント、認証ミドルウェア
 │   ├── auth.py             # ロールチェック（is_student）
-│   ├── config.py           # 環境変数、定数定義
+│   ├── config.py           # 環境変数、定数定義、モデル選択設定
 │   ├── db.py               # SQLite接続、スキーマ、シードデータ
 │   ├── parser.py           # MDファイルパーサー
-│   ├── classifier.py       # Claude API呼び出し
-│   ├── prompts.py          # プロンプト定義
+│   ├── classifier.py       # Claude API呼び出し（統合プロンプト、モデル自動選択）
+│   ├── prompts.py          # プロンプト定義（統合 + 旧互換）
+│   ├── models.py           # Pydanticモデル（ClassificationResult等）
 │   └── routers/            # エンドポイント群
 │       ├── upload.py       # アップロード・解析・レビューリスト
 │       ├── passages.py     # CRUD・インライン編集・手動追加・カラムフィルター
@@ -73,11 +76,23 @@ DB_PATH=./data/exam.db               # DB保存先
 - `## Text`が空（`[ ]`等）の場合、`## Data` → `## Instructions`の順にフォールバック
 - 設問分析には全`## Instructions` + `## Data` + `## Questions`を結合して送信（要約指示・英作文指示も検出可能に）
 
-## text_type 分類（4種別）
+## text_type 分類（5種別）
 - `long_reading`: 長文読解（200語以上 + 内容理解問題）
 - `short_translation`: 短文和訳（英→日のみ）
 - `composition`: 英作文（和文英訳・自由英作文・グラフ記述）
+- `others`: 語句整序、文法・語彙問題など
 - `listening`: リスニング（放送・聞き取り問題）
+
+## フィールド判定ルール（text_type別）
+
+| text_type | word_count | text_style | genre/sub/theme |
+|---|---|---|---|
+| long_reading | 判定 | 判定 | 判定 |
+| short_translation | 判定 | 判定 | 判定 |
+| composition(和英含む) | NULL | 判定(空白可) | 判定(空白可) |
+| composition(自英のみ) | NULL | 空白 | 判定(空白可) |
+| others | NULL | 空白 | 空白 |
+| listening | NULL | 空白 | 空白 |
 
 ## 設問分析フィールド（5分類 + 視覚情報）
 - `has_jp_translation`: 和訳問題
@@ -85,7 +100,21 @@ DB_PATH=./data/exam.db               # DB保存先
 - `has_en_explanation`: 英語での説明・記述
 - `has_jp_summary`: 日本語での要約
 - `has_en_summary`: 英語での要約
+- `has_wabun_eiyaku`: 和文英訳
+- `has_jiyu_eisakubun`: 自由英作文
 - `has_visual_info` / `visual_info_type`: 英作文中の視覚情報（表・グラフ・イラスト等）
+
+## 信頼度フラグ
+- `low_confidence`: LLMが判定に自信のないフィールドがある場合true
+- `low_confidence_fields`: 自信のないフィールド名のカンマ区切り文字列
+- UI上で黄色背景 + フィールド名バッジで表示
+- 語数(word_count)は警告対象から自動除外
+
+## モデル選択（大学クラス別）
+- `config.py` の `PREMIUM_UNIVERSITY_CLASSES` で制御
+- 旧帝大・難関大・準難関大 → Opus（高精度）
+- その他国立大・公立大・未設定 → Sonnet（コスト効率）
+- `classifier.py` の `_select_model()` がDBの `university_class` を参照して決定
 
 ## データ管理
 - 全データ削除: `POST /api/passages/delete-all`
@@ -112,12 +141,7 @@ DB_PATH=./data/exam.db               # DB保存先
 - **モバイル（768px以下）**: 4タブ統合（全体統計 / 問題形式 / 大学比較 / 大学詳細）
 - Chart.js + chartjs-plugin-datalabels を全グラフで使用
 
-## 英作文統計の集計基準
-- 英作文出題大学の割合: `COUNT(DISTINCT university)` ベース（大学単位）
-- 図表付き自由英作文: `comp_type = '自由英作文'` に限定した図表有無
-- 図表の種別: 表 / グラフ / その他
-
 ## コーディング規約
 - テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`
-- 入試問題MDデータは `../input/` に配置（gitには含めない）
+- 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
 - DBスキーマ変更時は `db.py` の `SCHEMA_SQL` を更新し、`init_db()` の冪等性を維持

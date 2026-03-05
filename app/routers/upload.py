@@ -38,11 +38,12 @@ def _save_passage(data: dict) -> None:
              text_type, text_style, word_count,
              source_title, source_author, source_year,
              genre_main, genre_sub, theme,
-             has_jp_written, has_en_written, has_summary, comp_type,
+             has_jp_written, has_en_written, has_summary, has_wabun_eiyaku, has_jiyu_eisakubun,
              has_jp_translation, has_jp_explanation, has_en_explanation,
              has_jp_summary, has_en_summary,
-             has_visual_info, visual_info_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             has_visual_info, visual_info_type,
+             low_confidence, low_confidence_fields)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["id"], data["university"], data["year"], data["faculty"],
                 data["question_number"], data["passage_index"],
@@ -55,7 +56,8 @@ def _save_passage(data: dict) -> None:
                 data.get("has_jp_written", False),
                 data.get("has_en_written", False),
                 data.get("has_summary", False),
-                data.get("comp_type", "none"),
+                data.get("has_wabun_eiyaku", False),
+                data.get("has_jiyu_eisakubun", False),
                 data.get("has_jp_translation", False),
                 data.get("has_jp_explanation", False),
                 data.get("has_en_explanation", False),
@@ -63,6 +65,8 @@ def _save_passage(data: dict) -> None:
                 data.get("has_en_summary", False),
                 data.get("has_visual_info", False),
                 data.get("visual_info_type", ""),
+                data.get("low_confidence", False),
+                data.get("low_confidence_fields", ""),
             ),
         )
         conn.commit()
@@ -192,19 +196,33 @@ async def get_review_list(request: Request):
     try:
         problem_jobs = conn.execute("""
             SELECT id, filename, status, passages_created, error_message, created_at
-            FROM analysis_jobs
-            WHERE status = 'error'
-               OR (status = 'completed' AND passages_created <= 2)
+            FROM analysis_jobs j
+            WHERE (status = 'error'
+               OR (status = 'completed' AND passages_created <= 2))
+              AND error_message IS NOT '全パッセージが登録済みです'
+              AND COALESCE(reviewed, 0) = 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM analysis_jobs j2
+                  WHERE j2.filename = j.filename
+                    AND j2.id > j.id
+                    AND j2.status = 'completed'
+                    AND j2.passages_created > 2
+              )
+              AND j.id = (
+                  SELECT MAX(j3.id) FROM analysis_jobs j3
+                  WHERE j3.filename = j.filename
+              )
             ORDER BY created_at DESC
         """).fetchall()
 
         problem_passages = conn.execute("""
             SELECT id, university, year, question_number, passage_index,
-                   genre_main, theme
+                   genre_main, theme, low_confidence, low_confidence_fields
             FROM passages
             WHERE genre_main = 'その他'
                OR theme IN ('不明', '内容不明')
-            ORDER BY year DESC, university, question_number
+               OR low_confidence = 1
+            ORDER BY low_confidence DESC, year DESC, university, question_number
         """).fetchall()
     finally:
         conn.close()
@@ -213,3 +231,15 @@ async def get_review_list(request: Request):
         "partials/review_list.html",
         {"request": request, "problem_jobs": problem_jobs, "problem_passages": problem_passages},
     )
+
+
+@router.delete("/api/review-list/job/{job_id}")
+async def dismiss_review_job(job_id: int):
+    """要確認リストからジョブを除外する（reviewed フラグを立てる）。"""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE analysis_jobs SET reviewed = 1 WHERE id = ?", (job_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}

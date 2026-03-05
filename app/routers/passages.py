@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from app.config import COMP_TYPE_LIST, GENRE_MAIN_LIST, TEXT_STYLE_LIST, TEXT_TYPE_LIST
+from app.config import GENRE_MAIN_LIST, TEXT_STYLE_LIST, TEXT_TYPE_LIST
 from app.db import build_filter_where, get_connection
 from app.auth import is_student
 from app.models import PassageUpdate
@@ -76,7 +76,6 @@ async def list_passages(
             "genre_list": GENRE_MAIN_LIST,
             "text_type_list": TEXT_TYPE_LIST,
             "text_style_list": TEXT_STYLE_LIST,
-            "comp_type_list": COMP_TYPE_LIST,
         },
     )
 
@@ -92,7 +91,7 @@ async def update_passage(request: Request, passage_id: str):
         updates = []
         params = []
         # ホワイトリスト: フォームから受け付けるカラム名（SQLインジェクション防止）
-        _TEXT_COLS = {"text_type", "text_style", "genre_main", "genre_sub", "theme", "comp_type", "notes"}
+        _TEXT_COLS = {"text_type", "text_style", "genre_main", "genre_sub", "theme", "notes"}
         _BOOL_COLS = {"has_jp_written", "has_en_written", "has_summary", "reviewed"}
         for key in form:
             if key in _TEXT_COLS:
@@ -124,7 +123,6 @@ async def update_passage(request: Request, passage_id: str):
             "p": row,
             "genre_list": GENRE_MAIN_LIST,
             "text_style_list": TEXT_STYLE_LIST,
-            "comp_type_list": COMP_TYPE_LIST,
         },
     )
 
@@ -160,8 +158,9 @@ async def create_passage(request: Request):
             """INSERT INTO passages (
                 id, university, year, faculty, question_number, passage_index,
                 text_type, text_style, word_count,
-                genre_main, genre_sub, theme, comp_type, reviewed
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+                genre_main, genre_sub, theme,
+                has_wabun_eiyaku, has_jiyu_eisakubun, reviewed
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
             (
                 passage_id, university, year,
                 (body.get("faculty") or ""),
@@ -172,7 +171,8 @@ async def create_passage(request: Request):
                 (body.get("genre_main") or "その他"),
                 (body.get("genre_sub") or ""),
                 (body.get("theme") or ""),
-                (body.get("comp_type") or "none"),
+                bool(body.get("has_wabun_eiyaku")),
+                bool(body.get("has_jiyu_eisakubun")),
             ),
         )
         conn.commit()

@@ -42,12 +42,24 @@ def normalize_year(raw_year) -> Optional[int]:
     return None
 
 
+def normalize_fullwidth_roman(s: str) -> str:
+    """全角ローマ数字（Ⅰ-Ⅹ）を半角ASCII表現に変換する。"""
+    fw_to_ascii = {
+        "Ⅰ": "I", "Ⅱ": "II", "Ⅲ": "III", "Ⅳ": "IV", "Ⅴ": "V",
+        "Ⅵ": "VI", "Ⅶ": "VII", "Ⅷ": "VIII", "Ⅸ": "IX", "Ⅹ": "X",
+    }
+    for fw, ascii_val in fw_to_ascii.items():
+        s = s.replace(fw, ascii_val)
+    return s
+
+
 def normalize_question_number(raw: str) -> str:
     """Question番号を統一形式に変換する。
 
     'Question 1' -> 'I', 'Question II' -> 'II', 'Question IV' -> 'IV'
+    アルファベット (A, B, C...) はそのまま保持する。
     """
-    raw = raw.strip()
+    raw = normalize_fullwidth_roman(raw.strip())
     # ローマ数字ならそのまま
     if re.match(r"^[IVX]+$", raw):
         return raw
@@ -56,6 +68,10 @@ def normalize_question_number(raw: str) -> str:
         "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V",
         "6": "VI", "7": "VII", "8": "VIII", "9": "IX", "10": "X",
     }
+    # ハイフン付きサブ番号の場合、先頭部分のみ変換 (例: "3-1" -> "III-1")
+    m = re.match(r"^(\d+)(-\d+)$", raw)
+    if m and m.group(1) in arabic_to_roman:
+        return arabic_to_roman[m.group(1)] + m.group(2)
     return arabic_to_roman.get(raw, raw)
 
 
@@ -73,29 +89,46 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
 
 
 def split_questions(body: str) -> list[tuple[str, str]]:
-    """本文を `# Question ...` で大問ブロックに分割する。
+    """本文を `# Question ...` 等で大問ブロックに分割する。
+
+    対応パターン:
+        # Question I / # Question 1 / # Question [1] / # Question (I)
+        # Question A / # Question B (アルファベット識別子)
+        # Question Ⅰ (全角ローマ数字)
+        # Question III-1 (ハイフン付きサブ番号)
+        # Question III (注記...) / # Question 1 (Continued)
+        # Problem I / # Section 1
+        # 問題I / # 問題1 / # 問題Ⅰ
+        # 第1問 / # 第2問
 
     Returns:
         List of (question_identifier, block_content)
-        question_identifier は '1', 'I', '2', 'II' などの番号部分
+        question_identifier は '1', 'I', 'A', 'III-1' などの番号部分
     """
-    # `# Question 1`, `# Question I`, `# Question [1]`, `# Question 1 (Continued)` にマッチ
-    # `# 第1問`, `# 第2問` 等の日本語形式にも対応
-    # `# Question [ ]` のような不正パターンは除外
+    # 全角ローマ数字を半角に変換してからマッチ
+    normalized_body = normalize_fullwidth_roman(body)
+
+    # 識別子パターン: ローマ数字、アラビア数字、アルファベット（ハイフン付きサブ番号含む）
+    IDENT = r"[IVX]+(?:-\d+)?|\d+(?:-\d+)?|[A-Z]"
     pattern = re.compile(
-        r"^# (?:Question\s+\[?([IVX]+|\d+)\]?(?:\s+\(Continued\))?|第(\d+)問)\s*$", re.MULTILINE
+        r"^# (?:"
+        r"(?:Question|Problem|Section)\s+[\[\(]?(" + IDENT + r")[\]\)]?(?:\s+\(.*?\))?"
+        r"|問題\s*(" + IDENT + r")"
+        r"|第(\d+)問"
+        r")\s*$",
+        re.MULTILINE
     )
-    matches = list(pattern.finditer(body))
+    matches = list(pattern.finditer(normalized_body))
     if not matches:
         return []
 
     blocks: list[tuple[str, str, bool]] = []
     for i, m in enumerate(matches):
-        # group(1): Question形式, group(2): 第N問形式
-        q_id = m.group(1) or m.group(2)
+        q_id = m.group(1) or m.group(2) or m.group(3)
         is_continued = "(Continued)" in m.group(0)
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+        # body（元テキスト）から切り出す（normalized_bodyと同じ長さ保証）
         block_content = body[start:end].strip()
         blocks.append((q_id, block_content, is_continued))
 
@@ -107,6 +140,22 @@ def split_questions(body: str) -> list[tuple[str, str]]:
             merged[-1] = (prev_id, prev_content + "\n\n" + content)
         else:
             merged.append((q_id, content))
+
+    # 同一q_idの重複を検出し、サフィックスで一意化
+    # 例: 大阪公立大の学部別 Question 3 → "3", "3" → "3-1", "3-2"
+    from collections import Counter
+    id_counts = Counter(q_id for q_id, _ in merged)
+    duplicated_ids = {q_id for q_id, count in id_counts.items() if count > 1}
+    if duplicated_ids:
+        result: list[tuple[str, str]] = []
+        dup_counters: dict[str, int] = {}
+        for q_id, content in merged:
+            if q_id in duplicated_ids:
+                dup_counters[q_id] = dup_counters.get(q_id, 0) + 1
+                result.append((f"{q_id}-{dup_counters[q_id]}", content))
+            else:
+                result.append((q_id, content))
+        return result
 
     return merged
 

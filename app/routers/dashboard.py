@@ -92,7 +92,7 @@ async def dashboard_partial(
 
         # 英作文出題の有無（大学ベース）
         comp_uni_count = conn.execute(
-            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where} AND comp_type != 'none'", params
+            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where} AND (has_wabun_eiyaku = 1 OR has_jiyu_eisakubun = 1)", params
         ).fetchone()["cnt"]
     finally:
         conn.close()
@@ -188,13 +188,13 @@ async def university_profile(
         "colors": TEXT_TYPE_COLORS,
     }
 
-    # 英作文形式（comp_type）分布
-    comp_rows = [r for r in all_rows if r["text_type"] == "composition"]
-    comp_counts = Counter(r["comp_type"] for r in comp_rows)
+    # 英作文形式分布
+    wabun_count = sum(1 for r in all_rows if r["has_wabun_eiyaku"])
+    jiyu_count = sum(1 for r in all_rows if r["has_jiyu_eisakubun"])
     comp_type_chart = {
-        "labels": ["和文英訳", "自由英作文", "なし"],
-        "data": [comp_counts.get("和文英訳", 0), comp_counts.get("自由英作文", 0), comp_counts.get("none", 0)],
-        "colors": ["#59a14f", "#edc948", "#dee2e6"],
+        "labels": ["和文英訳", "自由英作文"],
+        "data": [wabun_count, jiyu_count],
+        "colors": ["#59a14f", "#edc948"],
     }
 
     if not rows:
@@ -396,20 +396,22 @@ async def composition_stats(
             f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where}", params
         ).fetchone()["cnt"]
         comp_uni = conn.execute(
-            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where} AND comp_type != 'none'", params
+            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where} AND (has_wabun_eiyaku = 1 OR has_jiyu_eisakubun = 1)", params
         ).fetchone()["cnt"]
 
-        comp_rows = conn.execute(
-            f"SELECT comp_type, COUNT(*) as count FROM passages {where} AND comp_type != 'none' GROUP BY comp_type",
-            params,
-        ).fetchall()
+        wabun_count = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM passages {where} AND has_wabun_eiyaku = 1", params
+        ).fetchone()["cnt"]
+        jiyu_count = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM passages {where} AND has_jiyu_eisakubun = 1", params
+        ).fetchone()["cnt"]
 
         # 自由英作文の総数と視覚情報あり数
         free_comp_total = conn.execute(
-            f"SELECT COUNT(*) as cnt FROM passages {where} AND comp_type = '自由英作文'", params
+            f"SELECT COUNT(*) as cnt FROM passages {where} AND has_jiyu_eisakubun = 1", params
         ).fetchone()["cnt"]
         visual_count = conn.execute(
-            f"SELECT COUNT(*) as cnt FROM passages {where} AND comp_type = '自由英作文' AND has_visual_info = 1", params
+            f"SELECT COUNT(*) as cnt FROM passages {where} AND has_jiyu_eisakubun = 1 AND has_visual_info = 1", params
         ).fetchone()["cnt"]
 
         visual_type_rows = conn.execute(
@@ -425,8 +427,8 @@ async def composition_stats(
             "data": [comp_uni, total_uni - comp_uni],
         },
         "type": {
-            "labels": [r["comp_type"] for r in comp_rows],
-            "data": [r["count"] for r in comp_rows],
+            "labels": ["和文英訳", "自由英作文"],
+            "data": [wabun_count, jiyu_count],
         },
         "visual": {
             "labels": ["図表あり", "図表なし"],
@@ -472,21 +474,20 @@ async def yearly_trend(university: str = ""):
             })
 
     format_defs = [
-        ("和訳", "has_jp_translation", None, "#4e79a7"),
-        ("説明（日）", "has_jp_explanation", None, "#f28e2b"),
-        ("説明（英）", "has_en_explanation", None, "#e15759"),
-        ("要約（日）", "has_jp_summary", None, "#76b7b2"),
-        ("要約（英）", "has_en_summary", None, "#59a14f"),
+        ("和訳", "has_jp_translation", "#4e79a7"),
+        ("説明（日）", "has_jp_explanation", "#f28e2b"),
+        ("説明（英）", "has_en_explanation", "#e15759"),
+        ("要約（日）", "has_jp_summary", "#76b7b2"),
+        ("要約（英）", "has_en_summary", "#59a14f"),
+        ("和文英訳", "has_wabun_eiyaku", "#b07aa1"),
+        ("自由英作文", "has_jiyu_eisakubun", "#edc948"),
     ]
     format_datasets = []
-    for label, field, comp_val, color in format_defs:
+    for label, field, color in format_defs:
         data = []
         for y in years:
             yr_rows = [r for r in rows if r["year"] == y]
-            if field:
-                count = sum(1 for r in yr_rows if r[field])
-            else:
-                count = sum(1 for r in yr_rows if r["comp_type"] == comp_val)
+            count = sum(1 for r in yr_rows if r[field])
             data.append(count)
         if any(d > 0 for d in data):
             format_datasets.append({

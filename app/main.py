@@ -19,7 +19,6 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import (
     ADMIN_PASSWORD_HASH,
-    COMP_TYPE_LIST,
     GENRE_MAIN_LIST,
     REGION_LIST,
     SECRET_KEY,
@@ -176,7 +175,6 @@ async def index(request: Request):
             "genre_list": GENRE_MAIN_LIST,
             "text_type_list": TEXT_TYPE_LIST,
             "text_style_list": TEXT_STYLE_LIST,
-            "comp_type_list": COMP_TYPE_LIST,
             "university_class_list": UNIVERSITY_CLASS_LIST,
             "region_list": REGION_LIST,
             "current_year": datetime.now().year,

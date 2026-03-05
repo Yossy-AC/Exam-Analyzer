@@ -27,7 +27,8 @@ class PassageCreate(PassageBase):
     has_jp_written: bool = False
     has_en_written: bool = False
     has_summary: bool = False
-    comp_type: str = "none"
+    has_wabun_eiyaku: bool = False
+    has_jiyu_eisakubun: bool = False
     has_jp_translation: bool = False
     has_jp_explanation: bool = False
     has_en_explanation: bool = False
@@ -48,7 +49,8 @@ class PassageUpdate(BaseModel):
     has_jp_written: Optional[bool] = None
     has_en_written: Optional[bool] = None
     has_summary: Optional[bool] = None
-    comp_type: Optional[str] = None
+    has_wabun_eiyaku: Optional[bool] = None
+    has_jiyu_eisakubun: Optional[bool] = None
     has_jp_translation: Optional[bool] = None
     has_jp_explanation: Optional[bool] = None
     has_en_explanation: Optional[bool] = None
@@ -58,6 +60,28 @@ class PassageUpdate(BaseModel):
     visual_info_type: Optional[str] = None
     reviewed: Optional[bool] = None
     notes: Optional[str] = None
+
+
+class ClassificationResult(BaseModel):
+    text_type: str
+    text_style: str
+    word_count: Optional[int] = None
+    source_title: Optional[str] = None
+    source_author: Optional[str] = None
+    source_year: Optional[int] = None
+    genre_main: str = ""
+    genre_sub: str = ""
+    theme: str = ""
+    has_jp_translation: bool = False
+    has_jp_explanation: bool = False
+    has_en_explanation: bool = False
+    has_jp_summary: bool = False
+    has_en_summary: bool = False
+    has_wabun_eiyaku: bool = False
+    has_jiyu_eisakubun: bool = False
+    has_visual_info: bool = False
+    visual_info_type: str = ""
+    low_confidence_fields: list[str] = []
 
 
 class TextAnalysisResult(BaseModel):
@@ -76,7 +100,8 @@ class QuestionAnalysisResult(BaseModel):
     has_jp_written: bool = False
     has_en_written: bool = False
     has_summary: bool = False
-    comp_type: str = "none"
+    has_wabun_eiyaku: bool = False
+    has_jiyu_eisakubun: bool = False
     has_jp_translation: bool = False
     has_jp_explanation: bool = False
     has_en_explanation: bool = False

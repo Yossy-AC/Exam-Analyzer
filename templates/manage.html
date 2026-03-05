@@ -95,12 +95,10 @@
                             <option value="{{ g }}" {% if g == 'その他' %}selected{% endif %}>{{ g }}</option>
                             {% endfor %}
                         </select></label>
-                    <label style="font-size:13px;">作文<br>
-                        <select id="new-comp-type" style="width:100%;">
-                            <option value="none">none</option>
-                            <option value="和文英訳">和文英訳</option>
-                            <option value="自由英作文">自由英作文</option>
-                        </select></label>
+                    <label style="font-size:13px;">和文英訳<br>
+                        <input type="checkbox" id="new-wabun-eiyaku"></label>
+                    <label style="font-size:13px;">自由英作文<br>
+                        <input type="checkbox" id="new-jiyu-eisakubun"></label>
                     <label style="font-size:13px; grid-column:1/-1;">サブジャンル<br>
                         <input type="text" id="new-genre-sub" style="width:100%;"></label>
                     <label style="font-size:13px; grid-column:1/-1;">テーマ<br>
@@ -260,7 +258,8 @@ async function submitAddPassage() {
         genre_main: document.getElementById('new-genre-main').value,
         genre_sub: document.getElementById('new-genre-sub').value.trim(),
         theme: document.getElementById('new-theme').value.trim(),
-        comp_type: document.getElementById('new-comp-type').value,
+        has_wabun_eiyaku: document.getElementById('new-wabun-eiyaku').checked,
+        has_jiyu_eisakubun: document.getElementById('new-jiyu-eisakubun').checked,
     };
 
     try {

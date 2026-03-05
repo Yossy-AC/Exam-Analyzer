@@ -1,6 +1,6 @@
-<tr id="row-{{ p.id }}" data-passage-id="{{ p.id }}">
+<tr id="row-{{ p.id }}" data-passage-id="{{ p.id }}" {% if p.low_confidence %}class="low-confidence"{% endif %}>
     <td class="center"><input type="checkbox" class="row-select" value="{{ p.id }}"></td>
-    <td class="id-cell">{{ p.id }}</td>
+    <td class="id-cell">{{ p.id }}{% if p.low_confidence %}<br><span class="confidence-warn" title="要確認">{{ p.low_confidence_fields }}</span>{% endif %}</td>
     <td>{{ p.university }}</td>
     <td>{{ p.year }}</td>
     <td>{{ p.question_number }}-{{ p.passage_index }}</td>
@@ -52,7 +52,8 @@
     <td class="center">{{ '○' if p.has_en_explanation else '' }}</td>
     <td class="center">{{ '○' if p.has_jp_summary else '' }}</td>
     <td class="center">{{ '○' if p.has_en_summary else '' }}</td>
-    <td>{{ p.comp_type if p.comp_type != 'none' else '' }}</td>
+    <td class="center">{{ '○' if p.has_wabun_eiyaku else '' }}</td>
+    <td class="center">{{ '○' if p.has_jiyu_eisakubun else '' }}</td>
     <td class="center">{{ p.visual_info_type if p.has_visual_info else '' }}</td>
     <td class="center">
         <input type="checkbox"
@@ -67,6 +68,7 @@
         <button class="btn btn-xs btn-danger"
                 hx-delete="/api/passages/{{ p.id }}"
                 hx-confirm="削除しますか？"
-                onclick="this.closest('tr').remove()">×</button>
+                hx-target="closest tr"
+                hx-swap="outerHTML">×</button>
     </td>
 </tr>
