@@ -1,4 +1,5 @@
-<tr id="row-{{ p.id }}">
+<tr id="row-{{ p.id }}" data-passage-id="{{ p.id }}">
+    <td class="center"><input type="checkbox" class="row-select" value="{{ p.id }}"></td>
     <td class="id-cell">{{ p.id }}</td>
     <td>{{ p.university }}</td>
     <td>{{ p.year }}</td>

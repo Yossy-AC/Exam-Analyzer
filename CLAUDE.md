@@ -15,6 +15,7 @@
 exam-text-classifier/
 ├── app/                    # FastAPIアプリケーション
 │   ├── main.py             # エントリポイント、認証ミドルウェア
+│   ├── auth.py             # ロールチェック（is_student）
 │   ├── config.py           # 環境変数、定数定義
 │   ├── db.py               # SQLite接続、スキーマ、シードデータ
 │   ├── parser.py           # MDファイルパーサー
@@ -23,12 +24,13 @@ exam-text-classifier/
 │   └── routers/            # エンドポイント群
 │       ├── upload.py       # アップロード・解析・レビューリスト
 │       ├── passages.py     # CRUD・インライン編集・手動追加・カラムフィルター
-│       ├── dashboard.py    # 集計・グラフデータ
+│       ├── dashboard.py    # 集計・グラフデータ（7エンドポイント）
 │       ├── export.py       # CSV/JSON/DBエクスポート
 │       └── universities.py # 大学分類・地域設定管理
 ├── templates/              # Jinja2テンプレート
 │   ├── base.html
-│   ├── index.html          # ダッシュボード（7タブ）
+│   ├── index.html          # 分析画面（7タブ、モバイルは4タブ統合）
+│   ├── manage.html         # 管理画面（データ一覧・編集・削除）
 │   ├── login.html
 │   └── partials/           # HTMXフラグメント
 ├── static/style.css
@@ -99,6 +101,21 @@ DB_PATH=./data/exam.db               # DB保存先
 
 ## ジャンル分類スキーム（10カテゴリ）
 科学・技術 / 医療・健康 / 心理・行動 / 教育・学習 / 環境・自然 / 社会・文化 / 経済・ビジネス / 歴史・哲学 / 言語・コミュニケーション / その他
+
+## ロールガード
+- `app/auth.py` の `is_student(request)` で `BEHIND_PORTAL=true` かつ `X-Portal-Role: student` を判定
+- studentロールは管理画面(`/manage`)・全書き込みAPI（POST/PUT/DELETE/reclassify）・DB出力を拒否
+- スタンドアロン時（BEHIND_PORTAL未設定）はガード適用なし（自前bcrypt認証で全権限）
+
+## 分析画面のタブ構成
+- **デスクトップ（769px+）**: 7タブ（ダッシュボード / 長文統計 / 英作文統計 / 問題形式選択 / 大学間比較 / 大学別傾向 / 経年変化）
+- **モバイル（768px以下）**: 4タブ統合（全体統計 / 問題形式 / 大学比較 / 大学詳細）
+- Chart.js + chartjs-plugin-datalabels を全グラフで使用
+
+## 英作文統計の集計基準
+- 英作文出題大学の割合: `COUNT(DISTINCT university)` ベース（大学単位）
+- 図表付き自由英作文: `comp_type = '自由英作文'` に限定した図表有無
+- 図表の種別: 表 / グラフ / その他
 
 ## コーディング規約
 - テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`

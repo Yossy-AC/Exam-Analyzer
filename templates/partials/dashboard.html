@@ -1,66 +1,130 @@
-<div class="kpi-row">
-    <div class="kpi-card">
-        <div class="kpi-label">総データ数</div>
-        <div class="kpi-value">{{ total_passages }}</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">大学数</div>
-        <div class="kpi-value">{{ total_universities }}</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">年度範囲</div>
-        <div class="kpi-value" style="font-size:20px;">{{ year_min }}〜{{ year_max }}</div>
-    </div>
-</div>
-
+<!-- 上段: 総大問数 + 長文集計 -->
 <div class="dashboard-grid">
     <div class="dashboard-section">
-        <h4>問題形式分布</h4>
+        <h4>総大問数</h4>
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">大問数</div>
+                <div class="kpi-value">{{ total_passages }}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">大学数</div>
+                <div class="kpi-value">{{ total_universities }}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">年度範囲</div>
+                <div class="kpi-value" style="font-size:20px;">{{ year_min }}〜{{ year_max }}</div>
+            </div>
+        </div>
+        <h4 style="margin-top:12px;">問題形式分布</h4>
         <canvas id="dash-texttype-chart" height="120"></canvas>
     </div>
 
-    {% if top_genres %}
     <div class="dashboard-section">
-        <h4>長文ジャンル上位</h4>
-        <table class="table table-compact">
-            <thead>
-                <tr><th>ジャンル</th><th>件数</th></tr>
-            </thead>
+        <h4>長文集計</h4>
+        {% if style_summary %}
+        <table class="table table-compact" style="margin-bottom:8px;">
+            <thead><tr><th>文体グループ</th><th class="center">件数</th></tr></thead>
             <tbody>
-                {% for item in top_genres %}
-                <tr>
-                    <td>{{ item.genre }}</td>
-                    <td class="center">{{ item.count }}</td>
-                </tr>
+                {% for item in style_summary %}
+                <tr><td>{{ item.label }}</td><td class="center">{{ item.count }}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% endif %}
+        {% if top_genres %}
+        <table class="table table-compact">
+            <thead><tr><th>ジャンル</th><th class="center">件数</th></tr></thead>
+            <tbody>
+                {% for item in top_genres %}
+                <tr><td>{{ item.genre }}</td><td class="center">{{ item.count }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
     </div>
-    {% endif %}
+</div>
+
+<!-- 下段: ジャンル分布 + 英作文出題大学の割合 -->
+<div class="dashboard-grid" style="margin-top:16px;">
+    <div class="dashboard-section">
+        <h4>長文統計ジャンル分布</h4>
+        <canvas id="dash-genre-chart" height="200"></canvas>
+    </div>
+    <div class="dashboard-section">
+        <h4>英作文出題大学の割合</h4>
+        <canvas id="dash-comp-chart" height="200"></canvas>
+    </div>
 </div>
 
 <script>
 (function() {
-    const ctx = document.getElementById('dash-texttype-chart');
-    if (!ctx) return;
-    new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: {{ text_type_dist.labels | tojson }},
-            datasets: [{
-                data: {{ text_type_dist.data | tojson }},
-                backgroundColor: ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2']
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                datalabels: { display: true, anchor: 'end', align: 'end', color: '#555', font: { size: 11 } }
-            },
-            scales: { x: { beginAtZero: true } }
-        }
-    });
+    // 問題形式分布
+    var ctx1 = document.getElementById('dash-texttype-chart');
+    if (ctx1) {
+        var ttLabels = {{ text_type_dist.labels | tojson }};
+        var ttData = {{ text_type_dist.data | tojson }};
+        var ttColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#999'];
+        new Chart(ctx1.getContext('2d'), {
+            type: 'bar',
+            data: { labels: ttLabels, datasets: [{ data: ttData, backgroundColor: ttColors.slice(0, ttLabels.length) }] },
+            options: {
+                indexAxis: 'y', responsive: true,
+                plugins: { legend: { display: false }, datalabels: { display: true, anchor: 'end', align: 'end', color: '#555', font: { size: 11 } } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // ジャンル分布（ドーナツ）
+    var ctx2 = document.getElementById('dash-genre-chart');
+    if (ctx2) {
+        var gLabels = {{ genre_all.labels | tojson }};
+        var gData = {{ genre_all.data | tojson }};
+        var PALETTE = ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'];
+        new Chart(ctx2.getContext('2d'), {
+            type: 'doughnut',
+            data: { labels: gLabels, datasets: [{ data: gData, backgroundColor: PALETTE.slice(0, gLabels.length) }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                    datalabels: {
+                        color: '#fff', font: { size: 11, weight: 'bold' },
+                        formatter: function(value, ctx) {
+                            var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            var pct = total > 0 ? Math.round(value / total * 100) : 0;
+                            return pct >= 5 ? pct + '%' : '';
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 英作文出題の有無（ドーナツ）
+    var ctx3 = document.getElementById('dash-comp-chart');
+    if (ctx3) {
+        var cLabels = {{ comp_presence.labels | tojson }};
+        var cData = {{ comp_presence.data | tojson }};
+        new Chart(ctx3.getContext('2d'), {
+            type: 'doughnut',
+            data: { labels: cLabels, datasets: [{ data: cData, backgroundColor: ['#e15759', '#dee2e6'] }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                    datalabels: {
+                        color: '#fff', font: { size: 11, weight: 'bold' },
+                        formatter: function(value, ctx) {
+                            var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            var pct = total > 0 ? Math.round(value / total * 100) : 0;
+                            return pct >= 5 ? pct + '%' : '';
+                        }
+                    }
+                }
+            }
+        });
+    }
 })();
 </script>

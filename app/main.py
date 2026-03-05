@@ -28,6 +28,7 @@ from app.config import (
     TEXT_TYPE_LIST,
     UNIVERSITY_CLASS_LIST,
 )
+from app.auth import is_student
 from app.db import get_all_universities, get_connection, init_db
 from app.routers import dashboard, export, passages, universities, upload
 
@@ -187,6 +188,8 @@ async def index(request: Request):
 
 @app.get("/manage", response_class=HTMLResponse)
 async def manage(request: Request):
+    if is_student(request):
+        return RedirectResponse(_base_href(request), status_code=302)
     return templates.TemplateResponse(
         "manage.html",
         {

@@ -46,9 +46,14 @@
                 <button type="button" class="btn btn-sm btn-primary" style="margin-left:auto; align-self:flex-end;"
                         onclick="openAddPassageModal()">＋ データ追加</button>
             </div>
+            <div id="bulk-bar" style="display:none; margin-bottom:8px;">
+                <button class="btn btn-sm btn-danger" onclick="bulkDelete()">選択した行を削除</button>
+                <span id="bulk-count" style="font-size:12px; color:var(--muted); margin-left:8px;"></span>
+            </div>
             <div id="records-table"
                  hx-get="api/passages"
                  hx-trigger="revealed"></div>
+            <div id="pagination-bar" style="display:flex; gap:4px; align-items:center; margin-top:8px; flex-wrap:wrap;"></div>
         </div>
 
         <!-- データ追加モーダル -->
@@ -293,6 +298,112 @@ async function runReclassify() {
         btn.disabled = false;
         btn.textContent = 'その他○○ を再分類';
     }
+}
+
+// ---------- ページネーション ----------
+const PAGE_SIZE = 50;
+let currentPage = 1;
+
+function applyPagination() {
+    const table = document.getElementById('passages-table');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    const totalRows = rows.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    rows.forEach((row, i) => {
+        row.style.display = (i >= (currentPage - 1) * PAGE_SIZE && i < currentPage * PAGE_SIZE) ? '' : 'none';
+    });
+    renderPaginationBar(totalPages, totalRows);
+}
+
+function renderPaginationBar(totalPages, totalRows) {
+    const bar = document.getElementById('pagination-bar');
+    if (!bar) return;
+    if (totalRows <= PAGE_SIZE) { bar.innerHTML = ''; return; }
+
+    let html = `<span style="font-size:12px;color:var(--muted);">${totalRows}件中 ${(currentPage-1)*PAGE_SIZE+1}〜${Math.min(currentPage*PAGE_SIZE, totalRows)}件</span>`;
+    html += `<button class="btn btn-xs" onclick="goPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>&lt;</button>`;
+    for (let p = 1; p <= totalPages; p++) {
+        if (totalPages > 10 && Math.abs(p - currentPage) > 2 && p !== 1 && p !== totalPages) {
+            if (p === currentPage - 3 || p === currentPage + 3) html += '<span style="font-size:12px;">…</span>';
+            continue;
+        }
+        html += `<button class="btn btn-xs${p === currentPage ? ' btn-primary' : ''}" onclick="goPage(${p})">${p}</button>`;
+    }
+    html += `<button class="btn btn-xs" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>&gt;</button>`;
+    bar.innerHTML = html;
+}
+
+function goPage(p) {
+    const table = document.getElementById('passages-table');
+    if (!table) return;
+    const totalRows = table.querySelectorAll('tbody tr').length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+    applyPagination();
+}
+
+// records-table がHTMXやloadPartialで更新されたらページネーション適用
+const _recordsObserver = new MutationObserver(() => {
+    currentPage = 1;
+    applyPagination();
+    updateBulkBar();
+});
+_recordsObserver.observe(document.getElementById('records-table'), { childList: true, subtree: false });
+
+// ---------- 一括選択・削除 ----------
+function toggleSelectAll(master) {
+    const table = document.getElementById('passages-table');
+    if (!table) return;
+    // 現在表示中のページの行のみ対象
+    table.querySelectorAll('tbody tr').forEach(row => {
+        if (row.style.display !== 'none') {
+            const cb = row.querySelector('.row-select');
+            if (cb) cb.checked = master.checked;
+        }
+    });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const checked = document.querySelectorAll('.row-select:checked');
+    const bar = document.getElementById('bulk-bar');
+    const count = document.getElementById('bulk-count');
+    if (checked.length > 0) {
+        bar.style.display = 'flex';
+        count.textContent = `${checked.length}件選択中`;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+// チェックボックス変更の委任イベント
+document.getElementById('records-table').addEventListener('change', (e) => {
+    if (e.target.classList.contains('row-select')) updateBulkBar();
+});
+
+async function bulkDelete() {
+    const checked = document.querySelectorAll('.row-select:checked');
+    if (checked.length === 0) return;
+    if (!confirm(`${checked.length}件のデータを削除しますか？`)) return;
+
+    let deleted = 0;
+    for (const cb of checked) {
+        try {
+            const res = await fetch(BASE + 'api/passages/' + encodeURIComponent(cb.value), { method: 'DELETE' });
+            if (res.ok) {
+                const row = cb.closest('tr');
+                if (row) row.remove();
+                deleted++;
+            }
+        } catch (e) { /* skip */ }
+    }
+    alert(`${deleted}件を削除しました`);
+    applyPagination();
+    updateBulkBar();
 }
 </script>
 {% endblock %}

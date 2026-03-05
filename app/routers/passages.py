@@ -7,11 +7,12 @@ from typing import List, Optional
 import sqlite3
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.config import COMP_TYPE_LIST, GENRE_MAIN_LIST, TEXT_STYLE_LIST, TEXT_TYPE_LIST
 from app.db import build_filter_where, get_connection
+from app.auth import is_student
 from app.models import PassageUpdate
 
 router = APIRouter()
@@ -83,6 +84,8 @@ async def list_passages(
 @router.put("/api/passages/{passage_id}")
 async def update_passage(request: Request, passage_id: str):
     """パッセージの個別フィールドを更新する（インライン編集）。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     form = await request.form()
     conn = get_connection()
     try:
@@ -129,6 +132,8 @@ async def update_passage(request: Request, passage_id: str):
 @router.post("/api/passages")
 async def create_passage(request: Request):
     """パッセージを手動で新規追加する。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     body = await request.json()
 
     university = (body.get("university") or "").strip()
@@ -193,8 +198,10 @@ _SUB_GENRE_MAP: dict[str, list[str]] = {
 
 
 @router.post("/api/passages/reclassify-sub")
-async def reclassify_sub_genres():
+async def reclassify_sub_genres(request: Request):
     """genre_sub が「その他○○」の既存パッセージをClaude APIで再分類する。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     import anthropic
     from app.config import ANTHROPIC_API_KEY, CLAUDE_MODEL
 
@@ -251,8 +258,10 @@ async def reclassify_sub_genres():
 
 
 @router.delete("/api/passages/{passage_id}")
-async def delete_passage(passage_id: str):
+async def delete_passage(request: Request, passage_id: str):
     """パッセージを削除する。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     conn = get_connection()
     try:
         conn.execute("DELETE FROM passages WHERE id = ?", (passage_id,))

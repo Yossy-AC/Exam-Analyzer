@@ -9,9 +9,10 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
+from app.auth import is_student
 from app.classifier import classify_passage
 from app.config import INPUT_MD_DIR
 from app.db import get_connection
@@ -130,6 +131,8 @@ async def _process_file(job_id: int, filename: str, content: str) -> None:
 @router.post("/api/upload")
 async def upload_files(request: Request, files: list[UploadFile], background_tasks: BackgroundTasks):
     """MDファイルをアップロードして解析を開始する。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     Path(INPUT_MD_DIR).mkdir(parents=True, exist_ok=True)
     job_ids = []
 

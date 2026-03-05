@@ -74,18 +74,48 @@ async def dashboard_partial(
         ).fetchall()
 
         top_genre_rows = conn.execute(
-            f"SELECT genre_main, COUNT(*) as count FROM passages {where} AND text_type = 'long_reading' GROUP BY genre_main ORDER BY count DESC LIMIT 5",
+            f"SELECT genre_main, COUNT(*) as count FROM passages {where} AND text_type = 'long_reading' GROUP BY genre_main ORDER BY count DESC",
             params,
         ).fetchall()
+
+        # 長文集計: 文体グループ別
+        style_rows = conn.execute(
+            f"SELECT text_style, COUNT(*) as count FROM passages {where} AND text_type = 'long_reading' GROUP BY text_style ORDER BY count DESC",
+            params,
+        ).fetchall()
+
+        # ダッシュボード用ジャンル分布（長文全体）
+        genre_all_rows = conn.execute(
+            f"SELECT genre_main, COUNT(*) as count FROM passages {where} AND text_type = 'long_reading' GROUP BY genre_main ORDER BY count DESC",
+            params,
+        ).fetchall()
+
+        # 英作文出題の有無（大学ベース）
+        comp_uni_count = conn.execute(
+            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where} AND comp_type != 'none'", params
+        ).fetchone()["cnt"]
     finally:
         conn.close()
 
     tt_map = {r["text_type"]: r["count"] for r in text_type_rows}
     tt_order = ["long_reading", "short_translation", "composition", "listening"]
+    # text_type_distに「その他」を追加
+    known_total = sum(tt_map.get(k, 0) for k in tt_order)
+    other_count = total_passages - known_total
     text_type_dist = {
-        "labels": [TEXT_TYPE_LABELS[k] for k in tt_order],
-        "data": [tt_map.get(k, 0) for k in tt_order],
+        "labels": [TEXT_TYPE_LABELS[k] for k in tt_order] + (["その他"] if other_count > 0 else []),
+        "data": [tt_map.get(k, 0) for k in tt_order] + ([other_count] if other_count > 0 else []),
     }
+
+    # 文体グループ集計
+    LOGICAL_STYLES = {"説明文", "論説文", "ニュース・レポート"}
+    logical_total = sum(r["count"] for r in style_rows if r["text_style"] in LOGICAL_STYLES)
+    style_summary = []
+    if logical_total > 0:
+        style_summary.append({"label": "論理的説明文", "count": logical_total})
+    for r in style_rows:
+        if r["text_style"] not in LOGICAL_STYLES:
+            style_summary.append({"label": r["text_style"], "count": r["count"]})
 
     return templates.TemplateResponse(
         "partials/dashboard.html",
@@ -97,6 +127,15 @@ async def dashboard_partial(
             "year_max": year_row["y_max"] or "—",
             "text_type_dist": text_type_dist,
             "top_genres": [{"genre": r["genre_main"], "count": r["count"]} for r in top_genre_rows],
+            "style_summary": style_summary,
+            "genre_all": {
+                "labels": [r["genre_main"] for r in genre_all_rows],
+                "data": [r["count"] for r in genre_all_rows],
+            },
+            "comp_presence": {
+                "labels": ["出題あり", "出題なし"],
+                "data": [comp_uni_count, total_universities - comp_uni_count],
+            },
         },
     )
 
@@ -266,10 +305,14 @@ async def reading_stats(
             params,
         ).fetchone()
 
-        # ジャンル別サブジャンル詳細
+        # 論理的説明文のジャンル別サブジャンル詳細（エッセイ・評論/物語文を除外）
+        # genre_subが空の場合は「その他」として集計
         subgenre_rows = conn.execute(
-            f"""SELECT genre_main, genre_sub, COUNT(*) as count FROM passages {where}
-            AND genre_sub != '' GROUP BY genre_main, genre_sub ORDER BY genre_main, count DESC""",
+            f"""SELECT genre_main,
+                CASE WHEN genre_sub = '' THEN 'その他' ELSE genre_sub END as genre_sub,
+                COUNT(*) as count FROM passages {where}
+            AND text_style NOT IN ('エッセイ・評論', '物語文')
+            GROUP BY genre_main, genre_sub ORDER BY genre_main, count DESC""",
             params,
         ).fetchall()
     finally:
@@ -285,6 +328,22 @@ async def reading_stats(
                 "count": r["count"],
             })
 
+    # 文体データにグループ情報を付加
+    LOGICAL_STYLES = {"説明文", "論説文", "ニュース・レポート"}
+    style_labels = [r["text_style"] for r in style_rows]
+    style_data = [r["count"] for r in style_rows]
+    # 内側リング: 論理的説明文（3種統合）/ エッセイ・評論 / 物語文
+    group_labels = []
+    group_data = []
+    logical_total = sum(d for l, d in zip(style_labels, style_data) if l in LOGICAL_STYLES)
+    if logical_total > 0:
+        group_labels.append("論理的説明文")
+        group_data.append(logical_total)
+    for l, d in zip(style_labels, style_data):
+        if l not in LOGICAL_STYLES:
+            group_labels.append(l)
+            group_data.append(d)
+
     return JSONResponse({
         "genre": {
             "labels": [r["genre_main"] for r in genre_rows],
@@ -292,8 +351,10 @@ async def reading_stats(
             "colors": [_genre_color(g["genre_main"]) for g in genre_rows],
         },
         "style": {
-            "labels": [r["text_style"] for r in style_rows],
-            "data": [r["count"] for r in style_rows],
+            "labels": style_labels,
+            "data": style_data,
+            "group_labels": group_labels,
+            "group_data": group_data,
         },
         "format": {
             "labels": ["和訳", "説明（日本語）", "説明（英語）", "要約（日本語）", "要約（英語）"],
@@ -330,9 +391,12 @@ async def composition_stats(
         where = f"WHERE 1=1{extra}"
         params: list = filter_params
 
-        total = conn.execute(f"SELECT COUNT(*) as cnt FROM passages {where}", params).fetchone()["cnt"]
-        comp_count = conn.execute(
-            f"SELECT COUNT(*) as cnt FROM passages {where} AND comp_type != 'none'", params
+        # 大学ベースの英作文出題有無
+        total_uni = conn.execute(
+            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where}", params
+        ).fetchone()["cnt"]
+        comp_uni = conn.execute(
+            f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where} AND comp_type != 'none'", params
         ).fetchone()["cnt"]
 
         comp_rows = conn.execute(
@@ -340,8 +404,12 @@ async def composition_stats(
             params,
         ).fetchall()
 
+        # 自由英作文の総数と視覚情報あり数
+        free_comp_total = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM passages {where} AND comp_type = '自由英作文'", params
+        ).fetchone()["cnt"]
         visual_count = conn.execute(
-            f"SELECT COUNT(*) as cnt FROM passages {where} AND has_visual_info = 1", params
+            f"SELECT COUNT(*) as cnt FROM passages {where} AND comp_type = '自由英作文' AND has_visual_info = 1", params
         ).fetchone()["cnt"]
 
         visual_type_rows = conn.execute(
@@ -353,16 +421,16 @@ async def composition_stats(
 
     return JSONResponse({
         "presence": {
-            "labels": ["英作文あり", "英作文なし"],
-            "data": [comp_count, total - comp_count],
+            "labels": ["出題あり", "出題なし"],
+            "data": [comp_uni, total_uni - comp_uni],
         },
         "type": {
             "labels": [r["comp_type"] for r in comp_rows],
             "data": [r["count"] for r in comp_rows],
         },
         "visual": {
-            "labels": ["視覚情報あり", "視覚情報なし"],
-            "data": [visual_count, max(0, comp_count - visual_count)],
+            "labels": ["図表あり", "図表なし"],
+            "data": [visual_count, max(0, free_comp_total - visual_count)],
         },
         "visual_type": {
             "labels": [r["visual_info_type"] for r in visual_type_rows],

@@ -71,7 +71,8 @@
     </aside>
 
     <section class="content">
-        <div class="tabs">
+        <!-- デスクトップ: 7タブ -->
+        <div class="tabs desktop-tabs">
             <button class="tab active" data-tab="dashboard">ダッシュボード</button>
             <button class="tab" data-tab="reading">長文統計</button>
             <button class="tab" data-tab="composition">英作文統計</button>
@@ -81,6 +82,13 @@
             <button class="tab" data-tab="yearly">経年変化</button>
             <a class="tab" href="manage" style="text-decoration:none;">管理</a>
         </div>
+        <!-- モバイル: 4タブ -->
+        <div class="tabs mobile-tabs">
+            <button class="tab active" data-mtab="overview">全体統計</button>
+            <button class="tab" data-mtab="practice">問題形式</button>
+            <button class="tab" data-mtab="compare">大学比較</button>
+            <button class="tab" data-mtab="detail">大学詳細</button>
+        </div>
 
         <!-- タブ1: ダッシュボード -->
         <div class="tab-panel active" id="tab-dashboard">
@@ -89,23 +97,23 @@
 
         <!-- タブ2: 長文統計 -->
         <div class="tab-panel" id="tab-reading">
-            <div class="chart-grid">
+            <div class="chart-grid chart-grid-3">
                 <div class="chart-box">
-                    <h4>長文ジャンル分布</h4>
+                    <h4>ジャンル分布</h4>
                     <canvas id="reading-genre-chart" height="240"></canvas>
                 </div>
                 <div class="chart-box">
-                    <h4>長文文体分布</h4>
+                    <h4>文体分布</h4>
                     <canvas id="reading-style-chart" height="240"></canvas>
                 </div>
-            </div>
-            <div class="chart-grid" style="margin-top:16px">
                 <div class="chart-box">
-                    <h4>記述問題分類</h4>
-                    <canvas id="reading-format-chart" height="200"></canvas>
+                    <h4>長文中記述問題の種別</h4>
+                    <canvas id="reading-format-chart" height="240"></canvas>
                 </div>
+            </div>
+            <div style="margin-top:16px">
                 <div class="chart-box">
-                    <h4>ジャンル別サブジャンル詳細</h4>
+                    <h4>論理的説明文のジャンル詳細</h4>
                     <div id="reading-subgenres"></div>
                 </div>
             </div>
@@ -115,7 +123,7 @@
         <div class="tab-panel" id="tab-composition">
             <div class="chart-grid">
                 <div class="chart-box">
-                    <h4>英作文出題有無</h4>
+                    <h4>英作文出題大学の割合</h4>
                     <canvas id="comp-presence-chart" height="250"></canvas>
                 </div>
                 <div class="chart-box">
@@ -125,11 +133,11 @@
             </div>
             <div class="chart-grid" style="margin-top:16px">
                 <div class="chart-box">
-                    <h4>視覚情報の有無（英作文内）</h4>
+                    <h4>図表付き自由英作文</h4>
                     <canvas id="comp-visual-chart" height="250"></canvas>
                 </div>
                 <div class="chart-box">
-                    <h4>視覚情報の種別</h4>
+                    <h4>図表の種別</h4>
                     <canvas id="comp-visual-type-chart" height="250"></canvas>
                 </div>
             </div>
@@ -252,34 +260,127 @@
 
 <script>
 const BASE = document.querySelector('base')?.href || '/';
-// タブ切り替え
+
+// モバイルタブ → デスクトップタブのマッピング
+const MOBILE_TAB_MAP = {
+    overview: ['dashboard', 'reading', 'composition'],
+    practice: ['practice'],
+    compare: ['compare'],
+    detail: ['uni-profile', 'yearly'],
+};
+
+function isMobile() { return window.innerWidth <= 768; }
+
+// URL永続化: フィルター状態をURLクエリパラメータに保存
+function saveStateToURL() {
+    const params = new URLSearchParams();
+    // アクティブタブ
+    if (isMobile()) {
+        const mt = document.querySelector('.mobile-tabs .tab.active');
+        if (mt) params.set('mtab', mt.dataset.mtab);
+    } else {
+        const dt = document.querySelector('.desktop-tabs .tab.active');
+        if (dt && dt.dataset.tab) params.set('tab', dt.dataset.tab);
+    }
+    // フィルター
+    const ym = document.getElementById('year-mode').value;
+    if (ym !== 'all') params.set('year_mode', ym);
+    if (ym === 'custom') {
+        params.set('year_from', document.getElementById('year-from').value);
+        params.set('year_to', document.getElementById('year-to').value);
+    }
+    const allClass = document.querySelectorAll('[name=university_class]');
+    const checkedClass = document.querySelectorAll('[name=university_class]:checked');
+    if (checkedClass.length < allClass.length) {
+        checkedClass.forEach(cb => params.append('cls', cb.value));
+    }
+    const allRegion = document.querySelectorAll('[name=region]');
+    const checkedRegion = document.querySelectorAll('[name=region]:checked');
+    if (checkedRegion.length < allRegion.length) {
+        checkedRegion.forEach(cb => params.append('rgn', cb.value));
+    }
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+}
+
+function restoreStateFromURL() {
+    const params = new URLSearchParams(location.search);
+    // フィルター復元
+    if (params.has('year_mode')) {
+        document.getElementById('year-mode').value = params.get('year_mode');
+        toggleYearCustom(params.get('year_mode'));
+    }
+    if (params.has('year_from')) document.getElementById('year-from').value = params.get('year_from');
+    if (params.has('year_to')) document.getElementById('year-to').value = params.get('year_to');
+    if (params.has('cls')) {
+        const vals = params.getAll('cls');
+        document.querySelectorAll('[name=university_class]').forEach(cb => { cb.checked = vals.includes(cb.value); });
+    }
+    if (params.has('rgn')) {
+        const vals = params.getAll('rgn');
+        document.querySelectorAll('[name=region]').forEach(cb => { cb.checked = vals.includes(cb.value); });
+    }
+    // タブ復元
+    if (isMobile() && params.has('mtab')) {
+        return { mobile: params.get('mtab') };
+    } else if (params.has('tab')) {
+        return { desktop: params.get('tab') };
+    }
+    return null;
+}
+
+// デスクトップ: 単一タブ切り替え
 function switchTab(name) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.desktop-tabs .tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    const btn = document.querySelector(`.tab[data-tab="${name}"]`);
+    const btn = document.querySelector(`.desktop-tabs .tab[data-tab="${name}"]`);
     if (btn) btn.classList.add('active');
     const panel = document.getElementById('tab-' + name);
     if (panel) panel.classList.add('active');
-    location.hash = name;
+    saveStateToURL();
 
     if (name === 'dashboard') loadDashboard();
     if (name === 'reading') loadReadingStats();
     if (name === 'composition') loadCompositionStats();
 }
 
-document.querySelectorAll('.tab').forEach(tab => {
+// モバイル: 複数パネルをまとめて表示
+function switchMobileTab(name) {
+    document.querySelectorAll('.mobile-tabs .tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const btn = document.querySelector(`.mobile-tabs .tab[data-mtab="${name}"]`);
+    if (btn) btn.classList.add('active');
+    const panels = MOBILE_TAB_MAP[name] || [];
+    panels.forEach(p => {
+        const el = document.getElementById('tab-' + p);
+        if (el) el.classList.add('active');
+    });
+    saveStateToURL();
+
+    if (panels.includes('dashboard')) loadDashboard();
+    if (panels.includes('reading')) loadReadingStats();
+    if (panels.includes('composition')) loadCompositionStats();
+}
+
+// デスクトップタブのイベント
+document.querySelectorAll('.desktop-tabs .tab[data-tab]').forEach(tab => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
+// モバイルタブのイベント
+document.querySelectorAll('.mobile-tabs .tab[data-mtab]').forEach(tab => {
+    tab.addEventListener('click', () => switchMobileTab(tab.dataset.mtab));
+});
 
-// 初期ロード（ダッシュボード）
-loadDashboard();
-
-// リロード時にハッシュからタブを復元
-if (location.hash) {
-    const tab = location.hash.slice(1);
-    if (document.querySelector(`.tab[data-tab="${tab}"]`)) {
-        switchTab(tab);
-    }
+// 初期ロード（URL復元 or デフォルト）
+const _restored = restoreStateFromURL();
+if (_restored?.mobile) {
+    switchMobileTab(_restored.mobile);
+} else if (_restored?.desktop) {
+    switchTab(_restored.desktop);
+} else if (isMobile()) {
+    switchMobileTab('overview');
+} else {
+    loadDashboard();
 }
 
 // フィルターUIのヘルパー
@@ -338,12 +439,17 @@ function applyFilters() {
         return;
     }
 
-    const activeTab = document.querySelector('.tab.active');
-    if (activeTab) {
-        const t = activeTab.dataset.tab;
-        if (t === 'dashboard') loadDashboard();
-        if (t === 'reading') loadReadingStats();
-        if (t === 'composition') loadCompositionStats();
+    if (isMobile()) {
+        const activeMTab = document.querySelector('.mobile-tabs .tab.active');
+        if (activeMTab) switchMobileTab(activeMTab.dataset.mtab);
+    } else {
+        const activeTab = document.querySelector('.desktop-tabs .tab.active');
+        if (activeTab) {
+            const t = activeTab.dataset.tab;
+            if (t === 'dashboard') loadDashboard();
+            if (t === 'reading') loadReadingStats();
+            if (t === 'composition') loadCompositionStats();
+        }
     }
 }
 
@@ -363,8 +469,9 @@ function doughnutConfig(labels, data, colors) {
         data: { labels, datasets: [{ data, backgroundColor: colors || palette(labels.length) }] },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'right', labels: { font: { size: 11 } } },
+                legend: { position: isMobile() ? 'bottom' : 'right', labels: { font: { size: 11 } } },
                 datalabels: {
                     color: '#fff',
                     font: { size: 11, weight: 'bold' },
@@ -413,28 +520,154 @@ async function loadReadingStats() {
     const res = await fetch(BASE + 'api/stats/reading-stats?' + params.toString());
     const data = await res.json();
 
-    createChart('reading-genre-chart', doughnutConfig(data.genre.labels, data.genre.data, data.genre.colors));
-    createChart('reading-style-chart', doughnutConfig(data.style.labels, data.style.data));
+    var genreConf = doughnutConfig(data.genre.labels, data.genre.data, data.genre.colors);
+    genreConf.options.plugins.legend.position = 'bottom';
+    createChart('reading-genre-chart', genreConf);
+    // 文体分布: 二重ドーナツ (外側=5文体詳細, 内側=グループ統合)
+    // 内側データセットを外側と同じ5要素に揃える（論理的3文体→先頭に合計、残り0）
+    try {
+        var LOGICAL_SET = new Set(['説明文', '論説文', 'ニュース・レポート']);
+        var BLUE_GRADIENT = ['#2c5f8a', '#4e79a7', '#8ab4d6']; // 濃→中→薄
+        // 論理的3文体を出現率の高い順にソートし、濃→薄の色を割当
+        var logicalEntries = [];
+        data.style.labels.forEach(function(l, i) {
+            if (LOGICAL_SET.has(l)) logicalEntries.push({ label: l, count: data.style.data[i], idx: i });
+        });
+        logicalEntries.sort(function(a, b) { return b.count - a.count; });
+        var logicalColorMap = {};
+        logicalEntries.forEach(function(e, rank) { logicalColorMap[e.label] = BLUE_GRADIENT[rank]; });
+        var DETAIL_COLORS = Object.assign({}, logicalColorMap, { 'エッセイ・評論': '#edc948', '物語文': '#b07aa1' });
+        var outerColors = data.style.labels.map(function(l) { return DETAIL_COLORS[l] || '#999'; });
+        // 内側: 論理的説明文グループは先頭の論理文体位置に合計値、残りは0
+        var logicalTotal = 0;
+        var firstLogicalIdx = -1;
+        var innerData = [];
+        var innerBg = [];
+        data.style.labels.forEach(function(l, i) {
+            if (LOGICAL_SET.has(l)) {
+                logicalTotal += data.style.data[i];
+                if (firstLogicalIdx === -1) firstLogicalIdx = i;
+                innerData.push(0);
+                innerBg.push('transparent');
+            } else {
+                innerData.push(data.style.data[i]);
+                innerBg.push(DETAIL_COLORS[l] || '#999');
+            }
+        });
+        if (firstLogicalIdx >= 0) {
+            innerData[firstLogicalIdx] = logicalTotal;
+            innerBg[firstLogicalIdx] = '#3a6d99';
+        }
+        // 内側の0値セグメントのborderも透明に
+        var innerBorder = innerData.map(function(v) { return v > 0 ? '#fff' : 'transparent'; });
+        var styleCtx = document.getElementById('reading-style-chart').getContext('2d');
+        if (charts['reading-style-chart']) charts['reading-style-chart'].destroy();
+        charts['reading-style-chart'] = new Chart(styleCtx, {
+            type: 'doughnut',
+            data: {
+                labels: data.style.labels,
+                datasets: [
+                    { data: innerData, backgroundColor: innerBg, borderColor: innerBorder, borderWidth: 2 },
+                    { data: data.style.data, backgroundColor: outerColors, borderWidth: 1 },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 11 },
+                            generateLabels: function() {
+                                var items = [];
+                                if (firstLogicalIdx >= 0) {
+                                    items.push({ text: '論理的説明文 (' + logicalTotal + ')', fillStyle: '#4e79a7', strokeStyle: '#4e79a7', index: 0 });
+                                }
+                                data.style.labels.forEach(function(l, i) {
+                                    if (!LOGICAL_SET.has(l)) {
+                                        items.push({ text: l + ' (' + data.style.data[i] + ')', fillStyle: DETAIL_COLORS[l], strokeStyle: DETAIL_COLORS[l], index: items.length });
+                                    }
+                                });
+                                return items;
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                if (ctx.datasetIndex === 0 && ctx.dataIndex === firstLogicalIdx) {
+                                    return ' 論理的説明文: ' + ctx.raw;
+                                }
+                                return ' ' + data.style.labels[ctx.dataIndex] + ': ' + ctx.raw;
+                            }
+                        },
+                        filter: function(item) { return item.raw > 0; }
+                    },
+                    datalabels: {
+                        color: '#fff',
+                        font: { size: 10, weight: 'bold' },
+                        display: function(ctx) { return ctx.dataset.data[ctx.dataIndex] > 0; },
+                        formatter: function(value, ctx) {
+                            if (value === 0) return '';
+                            var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            var pct = total > 0 ? Math.round(value / total * 100) : 0;
+                            if (pct < 5) return '';
+                            // 外側リング(datasetIndex=1): ラベル名 + %
+                            if (ctx.datasetIndex === 1) {
+                                return data.style.labels[ctx.dataIndex] + '\n' + pct + '%';
+                            }
+                            return pct + '%';
+                        }
+                    }
+                }
+            }
+        });
+    } catch(e) {
+        console.error('Style chart error:', e);
+    }
     createChart('reading-format-chart', {
         type: 'bar',
         data: { labels: data.format.labels, datasets: [{ data: data.format.data, backgroundColor: ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f'] }] },
-        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { x: { beginAtZero: true } } }
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end', align: 'end', color: '#333',
+                    font: { size: 11, weight: 'bold' },
+                    formatter: function(value) { return value > 0 ? value : ''; }
+                }
+            },
+            scales: { x: { beginAtZero: true } }
+        }
     });
 
-    // ジャンル別サブジャンル詳細表
-    const subgenreEl = document.getElementById('reading-subgenres');
+    // 論理的説明文のジャンル詳細（エッセイ・評論、物語文を除外）
+    var EXCLUDED_STYLES = new Set(['エッセイ・評論', '物語文']);
+    var subgenreEl = document.getElementById('reading-subgenres');
     if (data.subgenres && Object.keys(data.subgenres).length > 0) {
-        let html = '<table class="table table-compact"><thead><tr><th>ジャンル</th><th>サブジャンル</th><th>件数</th></tr></thead><tbody>';
-        for (const [genre, subs] of Object.entries(data.subgenres)) {
-            for (let i = 0; i < subs.length; i++) {
-                html += '<tr>' + (i === 0 ? '<td rowspan="' + subs.length + '"><strong>' + genre + '</strong></td>' : '') +
-                    '<td>' + subs[i].subgenre + '</td>' +
-                    '<td class="center">' + subs[i].count + '</td>' +
-                    '</tr>';
-            }
+        // 論理的説明文に該当する文体のジャンルのみ抽出
+        var filteredGenres = {};
+        for (var genre in data.subgenres) {
+            var subs = data.subgenres[genre];
+            if (subs.length > 0) filteredGenres[genre] = subs;
         }
-        html += '</tbody></table>';
-        subgenreEl.innerHTML = html;
+        if (Object.keys(filteredGenres).length > 0) {
+            var html = '<div class="subgenre-flow">';
+            for (var g in filteredGenres) {
+                var subs = filteredGenres[g];
+                html += '<div class="subgenre-group"><h5>' + g + '</h5><ul>';
+                for (var i = 0; i < subs.length; i++) {
+                    html += '<li>' + subs[i].subgenre + ' <span class="badge">' + subs[i].count + '</span></li>';
+                }
+                html += '</ul></div>';
+            }
+            html += '</div>';
+            subgenreEl.innerHTML = html;
+        } else {
+            subgenreEl.innerHTML = '<p class="muted">データなし</p>';
+        }
     } else {
         subgenreEl.innerHTML = '<p class="muted">サブジャンルデータなし</p>';
     }
@@ -446,12 +679,42 @@ async function loadCompositionStats() {
     const res = await fetch(BASE + 'api/stats/composition-stats?' + params.toString());
     const data = await res.json();
 
-    createChart('comp-presence-chart', doughnutConfig(data.presence.labels, data.presence.data, ['#59a14f','#dee2e6']));
-    createChart('comp-type-chart', doughnutConfig(data.type.labels, data.type.data, ['#76b7b2','#59a14f','#edc948']));
-    createChart('comp-visual-chart', doughnutConfig(data.visual.labels, data.visual.data, ['#f28e2b','#dee2e6']));
+    // 実数+%表示のdoughnut設定
+    function compDoughnut(labels, data, colors) {
+        var conf = doughnutConfig(labels, data, colors);
+        conf.options.plugins.datalabels = {
+            color: '#fff', font: { size: 11, weight: 'bold' },
+            formatter: function(value, ctx) {
+                var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                var pct = total > 0 ? Math.round(value / total * 100) : 0;
+                if (pct < 5) return '';
+                return value + '\n(' + pct + '%)';
+            }
+        };
+        conf.options.plugins.legend.position = 'bottom';
+        return conf;
+    }
+    createChart('comp-presence-chart', compDoughnut(data.presence.labels, data.presence.data, ['#e15759','#dee2e6']));
+    createChart('comp-type-chart', compDoughnut(data.type.labels, data.type.data,
+        data.type.labels.map(function(l) { return l === '自由英作文' ? '#2c5f8a' : '#8ab4d6'; })
+    ));
+    createChart('comp-visual-chart', compDoughnut(data.visual.labels, data.visual.data, ['#f28e2b','#dee2e6']));
 
-    if (data.visual_type.labels.length) {
-        createChart('comp-visual-type-chart', doughnutConfig(data.visual_type.labels, data.visual_type.data));
+    // 図表の種別: 表=濃い黄, グラフ=薄い黄, その他=灰（表→グラフ→その他の順）
+    var vtOrder = ['表', 'グラフ', 'その他'];
+    var vtMap = {};
+    data.visual_type.labels.forEach(function(l, i) { vtMap[l] = data.visual_type.data[i]; });
+    var vtLabels = [];
+    var vtData = [];
+    vtOrder.forEach(function(l) { vtLabels.push(l); vtData.push(vtMap[l] || 0); });
+    // vtOrderにないラベルがあれば末尾に追加
+    data.visual_type.labels.forEach(function(l, i) {
+        if (vtOrder.indexOf(l) === -1) { vtLabels.push(l); vtData.push(data.visual_type.data[i]); }
+    });
+    var vtColorMap = { '表': '#d4a017', 'グラフ': '#f0d878' };
+    var vtColors = vtLabels.map(function(l) { return vtColorMap[l] || '#aaa'; });
+    if (vtLabels.length) {
+        createChart('comp-visual-type-chart', compDoughnut(vtLabels, vtData, vtColors));
     }
 }
 

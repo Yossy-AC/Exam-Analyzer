@@ -1,7 +1,9 @@
 """大学分類・地域設定の取得・更新ルーター。"""
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
+from app.auth import is_student
 from app.db import (
     delete_university,
     get_all_universities,
@@ -24,6 +26,8 @@ def list_universities():
 
 @router.put("/{name}")
 async def update_university_route(name: str, request: Request):
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     body = await request.json()
     university_class = body.get("university_class", "")
     region = body.get("region", "")
@@ -39,6 +43,8 @@ async def update_university_route(name: str, request: Request):
 
 @router.patch("/{name}")
 async def rename_university_route(name: str, request: Request):
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     body = await request.json()
     new_name = body.get("new_name", "").strip()
     if not new_name:
@@ -56,7 +62,9 @@ async def rename_university_route(name: str, request: Request):
 
 
 @router.delete("/{name}")
-async def delete_university_route(name: str):
+async def delete_university_route(name: str, request: Request):
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     conn = get_connection()
     try:
         ok, deleted_passages = delete_university(conn, name)

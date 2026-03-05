@@ -1,7 +1,8 @@
 {% if passages %}
-<table class="table">
+<table class="table" id="passages-table">
     <thead>
         <tr>
+            <th class="center"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
             <th>ID</th>
             <th>大学</th>
             <th>年度</th>

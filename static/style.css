@@ -265,6 +265,9 @@ canvas { max-height: 500px; }
     grid-template-columns: 1fr 1fr;
     gap: 16px;
 }
+.chart-grid-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
 .chart-box {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -272,6 +275,47 @@ canvas { max-height: 500px; }
     padding: 16px;
 }
 .chart-box h4 { font-size: 13px; margin-bottom: 8px; color: var(--text); }
+
+/* サブジャンル詳細 横並びレイアウト */
+.subgenre-flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+}
+.subgenre-group {
+    min-width: 180px;
+}
+.subgenre-group h5 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--text);
+}
+.subgenre-group ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.subgenre-group li {
+    font-size: 12px;
+    padding: 2px 0;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+.badge {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
 
 /* University profile card */
 .profile-card {
@@ -365,6 +409,9 @@ canvas { max-height: 500px; }
 .dashboard-section { margin-bottom: 24px; }
 .dashboard-section h4 { font-size: 14px; margin-bottom: 8px; }
 
+/* Desktop/Mobile tab bar visibility */
+.mobile-tabs { display: none; }
+
 /* Mobile responsive */
 @media (max-width: 768px) {
     .dashboard { flex-direction: column; }
@@ -380,6 +427,12 @@ canvas { max-height: 500px; }
     .profile-grid-two { grid-template-columns: 1fr; }
     .dashboard-grid { grid-template-columns: 1fr; }
     .kpi-row { flex-direction: column; }
+
+    .desktop-tabs { display: none; }
+    .mobile-tabs { display: flex; }
+
+    /* モバイルで凡例を下に配置（Chart.jsのresponsive optionsと併用） */
+    canvas { max-height: 300px; }
 }
 
 /* Print styles */

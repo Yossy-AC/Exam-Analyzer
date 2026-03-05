@@ -8,9 +8,10 @@ import json
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, Query
-from fastapi.responses import Response, StreamingResponse
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
+from app.auth import is_student
 from app.config import DB_PATH
 from app.db import get_connection
 
@@ -103,8 +104,10 @@ async def export_json(year: int = None, university: str = None, genre_main: str 
 
 
 @router.get("/api/export/db")
-async def export_db():
+async def export_db(request: Request):
     """SQLiteファイルダウンロード。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     db_path = Path(DB_PATH)
     if not db_path.exists():
         return Response("Database not found", status_code=404)
