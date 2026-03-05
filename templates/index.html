@@ -79,9 +79,7 @@
             <button class="tab" data-tab="compare">大学間比較</button>
             <button class="tab" data-tab="uni-profile">大学別傾向</button>
             <button class="tab" data-tab="yearly">経年変化</button>
-            <button class="tab" data-tab="records">データ一覧</button>
-            <button class="tab" data-tab="upload">アップロード</button>
-            <button class="tab" data-tab="univ-settings">大学設定</button>
+            <a class="tab" href="manage" style="text-decoration:none;">管理</a>
         </div>
 
         <!-- タブ1: ダッシュボード -->
@@ -249,151 +247,11 @@
             </div>
         </div>
 
-        <!-- タブ8: データ一覧 -->
-        <div class="tab-panel" id="tab-records">
-            <!-- フィルター + データ追加 -->
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px;">
-                <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">大学名
-                    <input type="text" id="filter-university-name" placeholder="部分一致"
-                           style="width:110px;" oninput="applyRecordsFilter()">
-                </label>
-                <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">種別
-                    <select id="filter-text-type" onchange="applyRecordsFilter()">
-                        <option value="">すべて</option>
-                        <option value="long_reading">long_reading</option>
-                        <option value="short_translation">short_translation</option>
-                        <option value="composition">composition</option>
-                        <option value="listening">listening</option>
-                    </select>
-                </label>
-                <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">ジャンル
-                    <select id="filter-genre-main" onchange="applyRecordsFilter()">
-                        <option value="">すべて</option>
-                        {% for g in genre_list %}
-                        <option value="{{ g }}">{{ g }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">テーマ
-                    <input type="text" id="filter-theme" placeholder="部分一致"
-                           style="width:110px;" oninput="applyRecordsFilter()">
-                </label>
-                <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">済フラグ
-                    <select id="filter-reviewed" onchange="applyRecordsFilter()">
-                        <option value="">すべて</option>
-                        <option value="false">未確認</option>
-                        <option value="true">確認済み</option>
-                    </select>
-                </label>
-                <button type="button" class="btn btn-sm btn-primary" style="margin-left:auto; align-self:flex-end;"
-                        onclick="openAddPassageModal()">＋ データ追加</button>
-            </div>
-            <div id="records-table"
-                 hx-get="/api/passages"
-                 hx-trigger="revealed"></div>
-        </div>
-
-        <!-- データ追加モーダル -->
-        <div id="add-passage-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto;">
-            <div style="background:#fff; margin:40px auto; padding:24px; max-width:520px; border-radius:8px; position:relative;">
-                <h3 style="margin:0 0 16px;">データ追加</h3>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                    <label style="font-size:13px;">大学名 <span style="color:#c44;">*</span><br>
-                        <input type="text" id="new-university" style="width:100%;" placeholder="例: 東京大"></label>
-                    <label style="font-size:13px;">年度 <span style="color:#c44;">*</span><br>
-                        <input type="number" id="new-year" style="width:100%;" placeholder="例: 2024" min="1990" max="2099"></label>
-                    <label style="font-size:13px;">問番号 <span style="color:#c44;">*</span><br>
-                        <input type="text" id="new-question-number" style="width:100%;" value="I" placeholder="例: I, II"></label>
-                    <label style="font-size:13px;">パッセージ番号<br>
-                        <input type="number" id="new-passage-index" style="width:100%;" value="1" min="1"></label>
-                    <label style="font-size:13px;">種別 <span style="color:#c44;">*</span><br>
-                        <select id="new-text-type" style="width:100%;">
-                            <option value="long_reading">long_reading</option>
-                            <option value="short_translation">short_translation</option>
-                            <option value="composition">composition</option>
-                            <option value="listening">listening</option>
-                        </select></label>
-                    <label style="font-size:13px;">学部<br>
-                        <input type="text" id="new-faculty" style="width:100%;" placeholder="例: 理系, 文系"></label>
-                    <label style="font-size:13px;">文体<br>
-                        <select id="new-text-style" style="width:100%;">
-                            <option value="">-- 選択 --</option>
-                            <option>説明文</option>
-                            <option>論説文</option>
-                            <option>ニュース・レポート</option>
-                            <option>エッセイ・評論</option>
-                            <option>物語文</option>
-                        </select></label>
-                    <label style="font-size:13px;">語数<br>
-                        <input type="number" id="new-word-count" style="width:100%;" placeholder="例: 600" min="0"></label>
-                    <label style="font-size:13px;">ジャンル<br>
-                        <select id="new-genre-main" style="width:100%;">
-                            {% for g in genre_list %}
-                            <option value="{{ g }}" {% if g == 'その他' %}selected{% endif %}>{{ g }}</option>
-                            {% endfor %}
-                        </select></label>
-                    <label style="font-size:13px;">作文<br>
-                        <select id="new-comp-type" style="width:100%;">
-                            <option value="none">none</option>
-                            <option value="和文英訳">和文英訳</option>
-                            <option value="自由英作文">自由英作文</option>
-                        </select></label>
-                    <label style="font-size:13px; grid-column:1/-1;">サブジャンル<br>
-                        <input type="text" id="new-genre-sub" style="width:100%;"></label>
-                    <label style="font-size:13px; grid-column:1/-1;">テーマ<br>
-                        <input type="text" id="new-theme" style="width:100%;"></label>
-                </div>
-                <div id="add-passage-error" style="color:#c44; font-size:13px; margin-top:8px;"></div>
-                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
-                    <button class="btn btn-sm" onclick="closeAddPassageModal()">キャンセル</button>
-                    <button class="btn btn-sm btn-primary" onclick="submitAddPassage()">追加</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- タブ10: 大学設定 -->
-        <div class="tab-panel" id="tab-univ-settings">
-            <p class="muted">読み込み中...</p>
-        </div>
-
-        <!-- タブ9: アップロード -->
-        <div class="tab-panel" id="tab-upload">
-            <form id="upload-form"
-                  hx-post="/api/upload"
-                  hx-target="#upload-results"
-                  hx-encoding="multipart/form-data">
-                <div id="dropzone"
-                     ondragover="event.preventDefault(); this.classList.add('dragover')"
-                     ondragleave="this.classList.remove('dragover')"
-                     ondrop="handleDrop(event)">
-                    <p>MDファイルをここにドラッグ&ドロップ</p>
-                    <p>または</p>
-                    <input type="file" name="files" multiple accept=".md" id="file-input">
-                </div>
-                <button type="submit" class="btn btn-primary">解析開始</button>
-            </form>
-            <div id="upload-results"></div>
-            <div id="job-status"
-                 hx-get="/api/jobs"
-                 hx-trigger="load, every 5s"
-                 hx-target="#job-status"></div>
-
-            <!-- 要確認リスト -->
-            <div style="margin-top:24px; border-top:1px solid #e0e0e0; padding-top:16px;">
-                <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-                    <h4 style="margin:0;">要確認リスト</h4>
-                    <button class="btn btn-sm" onclick="loadPartial('/api/review-list', 'review-list')">更新</button>
-                    <button class="btn btn-sm" id="reclassify-btn" onclick="runReclassify()">その他○○ を再分類</button>
-                </div>
-                <div id="review-list">
-                    <p style="color:#888; font-size:13px;">「更新」ボタンを押して確認してください</p>
-                </div>
-            </div>
-        </div>
     </section>
 </div>
 
 <script>
+const BASE = document.querySelector('base')?.href || '/';
 // タブ切り替え
 function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -407,8 +265,6 @@ function switchTab(name) {
     if (name === 'dashboard') loadDashboard();
     if (name === 'reading') loadReadingStats();
     if (name === 'composition') loadCompositionStats();
-    if (name === 'univ-settings') loadPartial('/partials/university-settings', 'tab-univ-settings');
-    if (name === 'upload') loadPartial('/api/review-list', 'review-list');
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
@@ -424,13 +280,6 @@ if (location.hash) {
     if (document.querySelector(`.tab[data-tab="${tab}"]`)) {
         switchTab(tab);
     }
-}
-
-// ドラッグ&ドロップ
-function handleDrop(e) {
-    e.preventDefault();
-    e.target.classList.remove('dragover');
-    document.getElementById('file-input').files = e.dataTransfer.files;
 }
 
 // フィルターUIのヘルパー
@@ -489,107 +338,12 @@ function applyFilters() {
         return;
     }
 
-    applyRecordsFilter();
     const activeTab = document.querySelector('.tab.active');
     if (activeTab) {
         const t = activeTab.dataset.tab;
         if (t === 'dashboard') loadDashboard();
         if (t === 'reading') loadReadingStats();
         if (t === 'composition') loadCompositionStats();
-    }
-}
-
-// データ一覧タブ専用フィルター
-function applyRecordsFilter() {
-    const params = getFilterParams();
-
-    const uniName = document.getElementById('filter-university-name')?.value;
-    if (uniName) params.append('university_name', uniName);
-
-    const textType = document.getElementById('filter-text-type')?.value;
-    if (textType) params.append('text_type', textType);
-
-    const genreMain = document.getElementById('filter-genre-main')?.value;
-    if (genreMain) params.append('genre_main', genreMain);
-
-    const theme = document.getElementById('filter-theme')?.value;
-    if (theme) params.append('theme', theme);
-
-    const reviewed = document.getElementById('filter-reviewed')?.value;
-    if (reviewed) params.append('reviewed', reviewed);
-
-    loadPartial('/api/passages?' + params.toString(), 'records-table');
-}
-
-// データ追加モーダル
-function openAddPassageModal() {
-    document.getElementById('add-passage-error').textContent = '';
-    document.getElementById('add-passage-modal').style.display = 'block';
-}
-
-function closeAddPassageModal() {
-    document.getElementById('add-passage-modal').style.display = 'none';
-}
-
-async function submitAddPassage() {
-    const university = document.getElementById('new-university').value.trim();
-    const year = document.getElementById('new-year').value.trim();
-    const questionNumber = document.getElementById('new-question-number').value.trim();
-
-    if (!university || !year || !questionNumber) {
-        document.getElementById('add-passage-error').textContent = '大学名・年度・問番号は必須です';
-        return;
-    }
-
-    const body = {
-        university,
-        year: parseInt(year),
-        question_number: questionNumber,
-        passage_index: parseInt(document.getElementById('new-passage-index').value) || 1,
-        text_type: document.getElementById('new-text-type').value,
-        faculty: document.getElementById('new-faculty').value.trim(),
-        text_style: document.getElementById('new-text-style').value,
-        word_count: document.getElementById('new-word-count').value || null,
-        genre_main: document.getElementById('new-genre-main').value,
-        genre_sub: document.getElementById('new-genre-sub').value.trim(),
-        theme: document.getElementById('new-theme').value.trim(),
-        comp_type: document.getElementById('new-comp-type').value,
-    };
-
-    try {
-        const res = await fetch('/api/passages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (res.ok) {
-            closeAddPassageModal();
-            applyRecordsFilter();
-        } else {
-            document.getElementById('add-passage-error').textContent = data.error || '追加に失敗しました';
-        }
-    } catch (e) {
-        document.getElementById('add-passage-error').textContent = 'エラー: ' + e.message;
-    }
-}
-
-// サブジャンル自動再分類
-async function runReclassify() {
-    if (!confirm('genre_sub が「その他○○」のデータをClaude APIで再分類します。\nAPI料金が発生します。続けますか？')) return;
-    const btn = document.getElementById('reclassify-btn');
-    btn.disabled = true;
-    btn.textContent = '再分類中...';
-    try {
-        const res = await fetch('/api/passages/reclassify-sub', { method: 'POST' });
-        const data = await res.json();
-        alert(`完了: ${data.updated}件を更新しました`);
-        loadPartial('/api/review-list', 'review-list');
-    } catch (e) {
-        alert('エラー: ' + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'その他○○ を再分類';
     }
 }
 
@@ -650,13 +404,13 @@ async function loadPartial(url, targetId) {
 // ---------- タブ1: ダッシュボード ----------
 function loadDashboard() {
     const params = getFilterParams();
-    loadPartial('/api/stats/dashboard?' + params.toString(), 'tab-dashboard');
+    loadPartial(BASE + 'api/stats/dashboard?' + params.toString(), 'tab-dashboard');
 }
 
 // ---------- タブ2: 長文統計 ----------
 async function loadReadingStats() {
     const params = getFilterParams();
-    const res = await fetch('/api/stats/reading-stats?' + params.toString());
+    const res = await fetch(BASE + 'api/stats/reading-stats?' + params.toString());
     const data = await res.json();
 
     createChart('reading-genre-chart', doughnutConfig(data.genre.labels, data.genre.data, data.genre.colors));
@@ -689,7 +443,7 @@ async function loadReadingStats() {
 // ---------- タブ3: 英作文統計 ----------
 async function loadCompositionStats() {
     const params = getFilterParams();
-    const res = await fetch('/api/stats/composition-stats?' + params.toString());
+    const res = await fetch(BASE + 'api/stats/composition-stats?' + params.toString());
     const data = await res.json();
 
     createChart('comp-presence-chart', doughnutConfig(data.presence.labels, data.presence.data, ['#59a14f','#dee2e6']));
@@ -723,7 +477,7 @@ function loadPracticeList() {
     }
     document.querySelectorAll('[name=university_class]:checked').forEach(cb => params.append('university_class', cb.value));
     document.querySelectorAll('[name=region]:checked').forEach(cb => params.append('region', cb.value));
-    loadPartial('/api/stats/practice-list?' + params.toString(), 'practice-results');
+    loadPartial(BASE + 'api/stats/practice-list?' + params.toString(), 'practice-results');
 }
 
 // ---------- タブ5: 大学間比較 ----------
@@ -736,7 +490,7 @@ async function loadCompareChart() {
     if (uni1) params.append('uni1', uni1);
     if (uni2) params.append('uni2', uni2);
     if (uni3) params.append('uni3', uni3);
-    const res = await fetch('/api/stats/compare-universities?' + params.toString());
+    const res = await fetch(BASE + 'api/stats/compare-universities?' + params.toString());
     const data = await res.json();
     createChart('compare-chart', {
         type: 'bar',
@@ -757,7 +511,7 @@ function loadUniversityProfile() {
     const uni = document.getElementById('profile-university').value;
     const params = getYearParams();
     params.set('university', uni);
-    loadPartial('/api/stats/university-profile?' + params.toString(), 'profile-content');
+    loadPartial(BASE + 'api/stats/university-profile?' + params.toString(), 'profile-content');
 }
 
 // ---------- タブ7: 経年変化 ----------
@@ -765,7 +519,7 @@ async function loadYearlyTrend() {
     const uni = document.getElementById('yearly-university').value;
     if (!uni) return;
 
-    const res = await fetch('/api/stats/yearly-trend?university=' + encodeURIComponent(uni));
+    const res = await fetch(BASE + 'api/stats/yearly-trend?university=' + encodeURIComponent(uni));
     const data = await res.json();
     if (data.empty) return;
 

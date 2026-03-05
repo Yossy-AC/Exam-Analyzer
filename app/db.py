@@ -263,6 +263,32 @@ def update_university(conn: sqlite3.Connection, name: str, university_class: str
     return cur.rowcount > 0
 
 
+def rename_university(conn: sqlite3.Connection, old_name: str, new_name: str) -> bool:
+    """大学名を変更する。passagesテーブルも連動更新。"""
+    existing = conn.execute("SELECT 1 FROM universities WHERE name=?", (old_name,)).fetchone()
+    if not existing:
+        return False
+    duplicate = conn.execute("SELECT 1 FROM universities WHERE name=?", (new_name,)).fetchone()
+    if duplicate:
+        raise ValueError(f"大学名 '{new_name}' は既に存在します")
+    conn.execute("UPDATE passages SET university=? WHERE university=?", (new_name, old_name))
+    conn.execute("UPDATE universities SET name=? WHERE name=?", (new_name, old_name))
+    conn.commit()
+    return True
+
+
+def delete_university(conn: sqlite3.Connection, name: str) -> tuple[bool, int]:
+    """大学を削除する。関連passagesも削除。削除した件数を返す。"""
+    existing = conn.execute("SELECT 1 FROM universities WHERE name=?", (name,)).fetchone()
+    if not existing:
+        return False, 0
+    cur = conn.execute("DELETE FROM passages WHERE university=?", (name,))
+    deleted_passages = cur.rowcount
+    conn.execute("DELETE FROM universities WHERE name=?", (name,))
+    conn.commit()
+    return True, deleted_passages
+
+
 def init_db() -> None:
     conn = get_connection()
     try:

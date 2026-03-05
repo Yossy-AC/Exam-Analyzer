@@ -183,3 +183,15 @@ async def index(request: Request):
             "reviewed": reviewed,
         },
     )
+
+
+@app.get("/manage", response_class=HTMLResponse)
+async def manage(request: Request):
+    return templates.TemplateResponse(
+        "manage.html",
+        {
+            "request": request,
+            "base_href": _base_href(request),
+            "genre_list": GENRE_MAIN_LIST,
+        },
+    )
