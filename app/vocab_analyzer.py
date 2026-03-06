@@ -44,6 +44,14 @@ def _load_cefr_j() -> dict[str, str]:
 
 
 @lru_cache(maxsize=1)
+def _load_junior_high() -> set[str]:
+    """小中学校語彙リストをセットで返す。"""
+    path = WORDLISTS_DIR / "junior_high.txt"
+    return {line.strip().lower() for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")}
+
+
+@lru_cache(maxsize=1)
 def _load_target1900() -> list[str]:
     """ターゲット1900の見出し語を順序付きリストで返す。"""
     path = WORDLISTS_DIR / "target1900.txt"
@@ -59,12 +67,18 @@ def _load_leap() -> list[str]:
             if line.strip() and not line.startswith("#")]
 
 
-def _calc_wordbook_profile(lemmas: list[str], wordlist: list[str], step: int = 100) -> dict:
+def _calc_wordbook_profile(
+    lemmas: list[str], wordlist: list[str], step: int = 100,
+    base_words: set[str] | None = None,
+) -> dict:
     """単語帳の100語刻みカバー率プロファイルを計算する。
+
+    Args:
+        base_words: 基本語彙セット（小中学語彙など）。指定時は最初からカバー済みとして加算。
 
     Returns:
         {
-            "coverage": float,  # 全体カバー率
+            "coverage": float,  # 全体カバー率（base_words + 単語帳全体）
             "profile": {"100": float, "200": float, ...}  # 累積カバー率
         }
     """
@@ -74,11 +88,14 @@ def _calc_wordbook_profile(lemmas: list[str], wordlist: list[str], step: int = 1
     total = len(lemmas)
     lemma_set = set(lemmas)
 
+    # base_wordsがある場合、最初からカバー済みとして含める
+    cumulative_words: set[str] = set()
+    if base_words:
+        cumulative_words = {w for w in base_words if w in lemma_set}
+
     # 各単語帳エントリが本文に出現するか（複数語フレーズも対応）
     profile: dict[str, float] = {}
-    cumulative_words: set[str] = set()
     for i, word in enumerate(wordlist, 1):
-        # スペース含むフレーズは個々の語に分解してマッチ
         parts = word.split()
         for part in parts:
             if part in lemma_set:
@@ -87,8 +104,8 @@ def _calc_wordbook_profile(lemmas: list[str], wordlist: list[str], step: int = 1
             covered = sum(1 for lemma in lemmas if lemma in cumulative_words)
             profile[str(i)] = round(covered / total, 4)
 
-    # 全体カバー率
-    all_words = set()
+    # 全体カバー率（base_words + 単語帳全体）
+    all_words = set(cumulative_words)
     for word in wordlist:
         for part in word.split():
             all_words.add(part)
@@ -207,9 +224,10 @@ def analyze_vocab(text: str) -> dict:
     nawl_count = sum(1 for lemma in lemmas if lemma in nawl)
     nawl_rate = round(nawl_count / total, 4)
 
-    # ターゲット1900・LEAPプロファイル
-    t1900_result = _calc_wordbook_profile(lemmas, _load_target1900())
-    leap_result = _calc_wordbook_profile(lemmas, _load_leap())
+    # ターゲット1900・LEAPプロファイル（小中学語彙をベースに加算）
+    junior_high = _load_junior_high()
+    t1900_result = _calc_wordbook_profile(lemmas, _load_target1900(), base_words=junior_high)
+    leap_result = _calc_wordbook_profile(lemmas, _load_leap(), base_words=junior_high)
 
     return {
         "avg_sentence_length": calc_avg_sentence_length(text),

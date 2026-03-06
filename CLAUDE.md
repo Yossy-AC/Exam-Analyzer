@@ -12,7 +12,7 @@
   - その他 → Claude Sonnet (`claude-sonnet-4-6`)
 - **CEFR推定**: Claude APIで長文のCEFRレベル（A2〜C2）を推定
 - **Embedding**: Voyage AI (`voyage-4`, 1024次元) でテキスト類似度検索
-- **語彙分析**: NLTK + 5語彙リスト（CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
+- **語彙分析**: NLTK + 6語彙リスト（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
 - **デプロイ**: Fly.io (東京リージョン nrt)
 
 ## ディレクトリ構成
@@ -30,7 +30,7 @@ exam-analyzer/
 │   ├── vocab_analyzer.py   # 語彙分析（5リスト照合・平均文長・CEFR-J分布）
 │   ├── embedding.py        # Voyage AI embedding（voyage-4, 1024次元）
 │   ├── search.py           # 類似長文検索（コサイン類似度 / 特徴量フォールバック）
-│   ├── wordlists/          # 語彙リストデータ（CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
+│   ├── wordlists/          # 語彙リストデータ（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
 │   └── routers/            # エンドポイント群
 │       ├── upload.py       # アップロード・解析・レビューリスト
 │       ├── passages.py     # CRUD・インライン編集・手動追加・カラムフィルター
@@ -128,6 +128,7 @@ DB_PATH=./data/exam.db               # DB保存先
 ## 語彙分析・CEFR推定・類似長文検索
 - `vocab_analyzer.py`: long_readingのtext_bodyから語彙指標を自動計算（アップロード時）
   - CEFR-Jレベル別分布 + B2超過率、NGSL未カバー率、NAWL率、ターゲット1900/LEAPカバー率、平均文長
+  - 単語帳プロファイル: 小中学語彙（`junior_high.txt`）をベースに加え、「小中学語彙+単語帳N番まで」の統合カバー率
 - `classifier.py` の `estimate_cefr()`: Claude APIでCEFRレベル（A2〜C2）+ 信頼度を推定
   - 入力: text_body先頭3000字 + 語彙指標
   - cefr_score: A2=1, B1=2, B2=3, C1=3.5, C2=4（数値化）
@@ -160,9 +161,15 @@ DB_PATH=./data/exam.db               # DB保存先
 - スタンドアロン時（BEHIND_PORTAL未設定）はガード適用なし（自前bcrypt認証で全権限）
 
 ## 分析画面のタブ構成
-- **デスクトップ（769px+）**: 7タブ（ダッシュボード / 長文統計 / 英作文統計 / 問題形式選択 / 大学間比較 / 大学別傾向 / 経年変化）
+- **デスクトップ（769px+）**: 7タブ（ダッシュボード / 長文統計 / 英作文統計 / 問題形式選択 / 類似検索 / データ一覧 / その他（大学間比較・大学別傾向・経年変化））
 - **モバイル（768px以下）**: 4タブ統合（全体統計 / 問題形式 / 大学比較 / 大学詳細）
 - Chart.js + chartjs-plugin-datalabels を全グラフで使用
+
+## フィルターUI
+- `<details>/<summary>` 折りたたみパネル（`.filter-panel`）
+- デスクトップ: フローティング（`position:absolute`）、モバイル: インライン展開
+- フィルタ状態判定: 全ON・全OFFは「制限なし」、一部チェック時のみ `is-filtered` クラス付与（黄色背景）
+- 類似検索タブ: ソース選択用（大学ドロップダウン連動）と検索結果絞り込み用の2つの「大学属性」パネル
 
 ## コーディング規約
 - テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`

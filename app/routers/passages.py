@@ -33,6 +33,7 @@ async def list_passages(
     university_name: str = None,
     theme: str = None,
     cefr_level: str = None,
+    readonly: bool = False,
 ):
     """フィルタ付きパッセージ一覧。"""
     conn = get_connection()
@@ -67,7 +68,10 @@ async def list_passages(
             query += " AND p.cefr_level = ?"
             params.append(cefr_level)
 
-        query += " ORDER BY p.year DESC, p.university, p.question_number, p.passage_index"
+        query += """ ORDER BY p.year DESC,
+            CASE u.university_class WHEN '旧帝大' THEN 1 WHEN '難関大' THEN 2 WHEN '準難関大' THEN 3 WHEN 'その他国立大' THEN 4 WHEN 'その他公立大' THEN 5 ELSE 6 END,
+            CASE u.region WHEN '東北以北' THEN 1 WHEN '関東' THEN 2 WHEN '中部' THEN 3 WHEN '近畿' THEN 4 WHEN '中四国' THEN 5 WHEN '九州以南' THEN 6 ELSE 7 END,
+            p.university, p.question_number, p.passage_index"""
         rows = conn.execute(query, params).fetchall()
     finally:
         conn.close()
@@ -80,6 +84,7 @@ async def list_passages(
             "genre_list": GENRE_MAIN_LIST,
             "text_type_list": TEXT_TYPE_LIST,
             "text_style_list": TEXT_STYLE_LIST,
+            "readonly": readonly,
         },
     )
 

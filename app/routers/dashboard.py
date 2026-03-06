@@ -626,11 +626,14 @@ async def practice_list(
                 conditions.append(f"({' OR '.join(sub_filters)})")
 
         where = "WHERE " + " AND ".join(conditions) + extra
-        query = f"""SELECT university, year, theme, genre_main, genre_sub, text_type,
-            has_jp_translation, has_jp_explanation, has_en_explanation,
-            has_jp_summary, has_en_summary
-        FROM passages {where}
-        ORDER BY university, year"""
+        query = f"""SELECT p.university, p.year, p.theme, p.genre_main, p.genre_sub, p.text_type,
+            p.has_jp_translation, p.has_jp_explanation, p.has_en_explanation,
+            p.has_jp_summary, p.has_en_summary
+        FROM passages p LEFT JOIN universities u ON p.university = u.name {where}
+        ORDER BY p.year DESC,
+            CASE u.university_class WHEN '旧帝大' THEN 1 WHEN '難関大' THEN 2 WHEN '準難関大' THEN 3 WHEN 'その他国立大' THEN 4 WHEN 'その他公立大' THEN 5 ELSE 6 END,
+            CASE u.region WHEN '東北以北' THEN 1 WHEN '関東' THEN 2 WHEN '中部' THEN 3 WHEN '近畿' THEN 4 WHEN '中四国' THEN 5 WHEN '九州以南' THEN 6 ELSE 7 END,
+            p.university"""
         rows = conn.execute(query, params).fetchall()
     finally:
         conn.close()

@@ -14,6 +14,28 @@ from app.embedding import cosine_similarity, decode_embedding
 logger = logging.getLogger(__name__)
 
 
+_CEFR_LEVELS = [(1.0, "A2"), (2.0, "B1"), (3.0, "B2"), (3.5, "C1"), (4.0, "C2")]
+
+
+def cefr_display(score, level=None) -> str:
+    """CEFRスコアを表示用文字列に変換する。例: 2.5 → 'B1~B2'。"""
+    if score is None:
+        return level or ""
+    score = float(score)
+    for val, name in _CEFR_LEVELS:
+        if abs(score - val) < 0.01:
+            return name
+    lower = upper = None
+    for val, name in _CEFR_LEVELS:
+        if val < score:
+            lower = name
+        elif val > score and upper is None:
+            upper = name
+    if lower and upper:
+        return f"{lower}~{upper}"
+    return level or ""
+
+
 def _safe_float(val) -> float | None:
     """DBから取得した値をfloatに変換する。NULLはNoneを返す。"""
     if val is None:
@@ -77,6 +99,18 @@ def _compute_similarity(source: dict, candidate: dict) -> float:
     return round(base_similarity, 4)
 
 
+def _extract_coverage_at_milestone(profile_json: str | None, milestone: int) -> float | None:
+    """プロファイルJSONから指定マイルストーンのカバー率を取得する。"""
+    if not profile_json:
+        return None
+    try:
+        profile = json.loads(profile_json)
+        val = profile.get(str(milestone))
+        return float(val) if val is not None else None
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
+
+
 def find_similar(
     source_id: str,
     top_k: int = 10,
@@ -84,6 +118,11 @@ def find_similar(
     cefr_max: float | None = None,
     genre_main: str | None = None,
     exclude_same_university: bool = True,
+    wordbook: str | None = None,
+    wordbook_milestone: int | None = None,
+    vocab_coverage_min: float | None = None,
+    university_class: list | None = None,
+    region: list | None = None,
 ) -> tuple[dict | None, list[dict]]:
     """指定パッセージに類似した長文を検索する。
 
@@ -96,10 +135,11 @@ def find_similar(
         source_row = conn.execute(
             """SELECT id, university, year, faculty, question_number, passage_index,
                       text_type, text_style, word_count, genre_main, genre_sub, theme,
-                      text_body, cefr_score, cefr_level, cefr_confidence,
+                      cefr_score, cefr_level, cefr_confidence,
                       avg_sentence_length, cefr_j_beyond_rate,
                       ngsl_uncovered_rate, nawl_rate,
-                      target1900_coverage, leap_coverage, embedding
+                      target1900_coverage, leap_coverage,
+                      target1900_profile, leap_profile, embedding
                FROM passages WHERE id = ?""",
             (source_id,),
         ).fetchone()
@@ -131,32 +171,83 @@ def find_similar(
             conditions.append("genre_main = ?")
             params.append(genre_main)
 
+        if university_class or region:
+            uc_list = ["" if v == "未設定" else v for v in (university_class or [])]
+            rgn_list = ["" if v == "未設定" else v for v in (region or [])]
+            sub_parts: list[str] = []
+            sub_params: list = []
+            if uc_list:
+                ph = ",".join("?" * len(uc_list))
+                sub_parts.append(f"university_class IN ({ph})")
+                sub_params.extend(uc_list)
+            if rgn_list:
+                ph = ",".join("?" * len(rgn_list))
+                sub_parts.append(f"region IN ({ph})")
+                sub_params.extend(rgn_list)
+            conditions.append(
+                f"university IN (SELECT name FROM universities WHERE {' AND '.join(sub_parts)})"
+            )
+            params.extend(sub_params)
+
         where = " AND ".join(conditions)
         candidates = conn.execute(
             f"""SELECT id, university, year, question_number, passage_index,
                        text_style, word_count, genre_main, genre_sub, theme,
-                       text_body, cefr_score, cefr_level, cefr_confidence,
+                       cefr_score, cefr_level, cefr_confidence,
                        avg_sentence_length, cefr_j_beyond_rate,
                        ngsl_uncovered_rate, nawl_rate,
-                       target1900_coverage, leap_coverage, embedding
+                       target1900_coverage, leap_coverage,
+                       target1900_profile, leap_profile, embedding
                 FROM passages WHERE {where}""",
             params,
         ).fetchall()
     finally:
         conn.close()
 
+    # wordbook に応じたプロファイルキーを決定
+    profile_key = None
+    if wordbook == "target1900":
+        profile_key = "target1900_profile"
+    elif wordbook == "leap":
+        profile_key = "leap_profile"
+
     results = []
     for row in candidates:
         cand = dict(row)
         sim = _compute_similarity(source, cand)
         cand["similarity"] = sim
-        # text_bodyは先頭120字のみ（プレビュー用）
-        cand["text_preview"] = cand["text_body"][:120].replace("\n", " ")
-        del cand["text_body"]
+        cand["cefr_display"] = cefr_display(cand.get("cefr_score"), cand.get("cefr_level"))
+
+        # カバー率抽出
+        if profile_key and wordbook_milestone:
+            cand["vocab_coverage"] = _extract_coverage_at_milestone(
+                cand.get(profile_key), wordbook_milestone)
+        else:
+            cand["vocab_coverage"] = None
+
+        # カバー率フィルタ
+        if vocab_coverage_min is not None and profile_key and wordbook_milestone:
+            cov = cand["vocab_coverage"]
+            if cov is None or cov < vocab_coverage_min:
+                continue
+
         cand.pop("embedding", None)
+        cand.pop("target1900_profile", None)
+        cand.pop("leap_profile", None)
         results.append(cand)
 
     results.sort(key=lambda x: x["similarity"], reverse=True)
-    source["text_preview"] = source["text_body"][:120].replace("\n", " ")
+
+    # sourceにもカバー率を付与
+    if profile_key and wordbook_milestone:
+        source["vocab_coverage"] = _extract_coverage_at_milestone(
+            source.get(profile_key), wordbook_milestone)
+    else:
+        source["vocab_coverage"] = None
+
+    source.pop("embedding", None)
+    source.pop("target1900_profile", None)
+    source.pop("leap_profile", None)
+    source["cefr_display"] = cefr_display(source.get("cefr_score"), source.get("cefr_level"))
 
     return source, results[:top_k]

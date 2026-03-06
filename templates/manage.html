@@ -11,6 +11,31 @@
         <!-- タブ1: データ一覧 -->
         <div class="tab-panel active" id="tab-records">
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px;">
+                <details class="filter-panel" id="manage-filter-panel">
+                    <summary>大学属性</summary>
+                    <div class="filter-panel-body">
+                        <div>
+                            <div class="filter-section-label">大学分類</div>
+                            <div class="filter-row">
+                                {% for cls in university_class_list %}
+                                <label style="font-size:11px; display:flex; align-items:center; gap:2px; white-space:nowrap;">
+                                    <input type="checkbox" name="manage-cls" value="{{ cls }}" checked onchange="updateFilterPanel('manage-filter-panel'); applyRecordsFilter()"> {{ cls }}
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="filter-section-label">地域</div>
+                            <div class="filter-row">
+                                {% for r in region_list %}
+                                <label style="font-size:11px; display:flex; align-items:center; gap:2px; white-space:nowrap;">
+                                    <input type="checkbox" name="manage-rgn" value="{{ r }}" checked onchange="updateFilterPanel('manage-filter-panel'); applyRecordsFilter()"> {{ r }}
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </details>
                 <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">大学名
                     <input type="text" id="filter-university-name" placeholder="部分一致"
                            style="width:110px;" oninput="applyRecordsFilter()">
@@ -235,6 +260,8 @@ function applyRecordsFilter() {
     if (theme) params.append('theme', theme);
     const reviewed = document.getElementById('filter-reviewed')?.value;
     if (reviewed) params.append('reviewed', reviewed);
+    document.querySelectorAll('[name=manage-cls]:checked').forEach(cb => params.append('university_class', cb.value));
+    document.querySelectorAll('[name=manage-rgn]:checked').forEach(cb => params.append('region', cb.value));
     loadPartial(BASE + 'api/passages?' + params.toString(), 'records-table');
 }
 
@@ -416,5 +443,20 @@ async function bulkDelete() {
     applyPagination();
     updateBulkBar();
 }
+
+// ---------- フィルターパネル ----------
+function updateFilterPanel(panelId) {
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+    var all = panel.querySelectorAll('input[type=checkbox]');
+    var checked = panel.querySelectorAll('input[type=checkbox]:checked');
+    panel.classList.toggle('is-filtered', checked.length < all.length);
+}
+
+document.addEventListener('click', function(e) {
+    document.querySelectorAll('details.filter-panel[open]').forEach(function(panel) {
+        if (!panel.contains(e.target)) panel.removeAttribute('open');
+    });
+});
 </script>
 {% endblock %}

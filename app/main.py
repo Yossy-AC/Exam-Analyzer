@@ -196,5 +196,7 @@ async def manage(request: Request):
             "request": request,
             "base_href": _base_href(request),
             "genre_list": GENRE_MAIN_LIST,
+            "university_class_list": UNIVERSITY_CLASS_LIST,
+            "region_list": REGION_LIST,
         },
     )

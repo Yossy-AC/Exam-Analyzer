@@ -8,10 +8,12 @@
     <div style="margin-top:4px; display:flex; gap:12px; flex-wrap:wrap; font-size:13px;">
         <span>{{ source.genre_main }}{% if source.genre_sub %} / {{ source.genre_sub }}{% endif %}</span>
         <span>{{ source.theme or '—' }}</span>
-        {% if source.cefr_level %}<span class="cefr-badge cefr-{{ source.cefr_level }}">{{ source.cefr_level }}{% if source.cefr_score %} ({{ "%.1f"|format(source.cefr_score) }}){% endif %}</span>{% endif %}
+        {% if source.cefr_display %}<span class="cefr-badge cefr-{{ source.cefr_level }}">{{ source.cefr_display }}</span>{% endif %}
         {% if source.word_count %}<span>{{ source.word_count }}語</span>{% endif %}
+        {% if wordbook and source.vocab_coverage is not none %}
+        <span style="font-weight:600;">{{ wordbook_label }} ({{ wordbook_milestone }}番まで): {{ "%.1f"|format(source.vocab_coverage * 100) }}%</span>
+        {% endif %}
     </div>
-    <div style="margin-top:6px; font-size:12px; color:#555;">{{ source.text_preview }}…</div>
 </div>
 
 <!-- 類似結果 -->
@@ -25,9 +27,9 @@
             <th>CEFR</th>
             <th>ジャンル / テーマ</th>
             <th>語数</th>
-            <th>beyond率</th>
-            <th>文長</th>
-            <th>冒頭</th>
+            <th>C1/C2語彙率</th>
+            <th>1文の平均語数</th>
+            {% if wordbook %}<th>{{ wordbook_label }}<br><span style="font-size:11px;">({{ wordbook_milestone }}番まで)</span></th>{% endif %}
         </tr>
     </thead>
     <tbody>
@@ -40,9 +42,8 @@
             </td>
             <td>{{ r.university }}<br><span style="font-size:11px; color:#6c757d;">{{ r.year }}年 Q{{ r.question_number }}-{{ r.passage_index }}</span></td>
             <td class="center">
-                {% if r.cefr_level %}
-                <span class="cefr-badge cefr-{{ r.cefr_level }}">{{ r.cefr_level }}</span>
-                {% if r.cefr_score %}<br><span style="font-size:11px; color:#6c757d;">{{ "%.1f"|format(r.cefr_score) }}</span>{% endif %}
+                {% if r.cefr_display %}
+                <span class="cefr-badge cefr-{{ r.cefr_level }}">{{ r.cefr_display }}</span>
                 {% else %}—{% endif %}
             </td>
             <td>
@@ -50,9 +51,17 @@
                 {% if r.theme %}<br><span style="font-size:11px; color:#6c757d;">{{ r.theme }}</span>{% endif %}
             </td>
             <td class="center">{{ r.word_count or '—' }}</td>
-            <td class="center">{% if r.cefr_j_beyond_rate is not none %}{{ "%.1f"|format(r.cefr_j_beyond_rate * 100) }}%{% else %}—{% endif %}</td>
-            <td class="center">{% if r.avg_sentence_length is not none %}{{ "%.1f"|format(r.avg_sentence_length) }}{% else %}—{% endif %}</td>
-            <td style="font-size:11px; color:#555; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ r.text_preview }}</td>
+            <td class="center">{% if r.cefr_j_beyond_rate is not none %}<span style="font-weight:600; color:{% if r.cefr_j_beyond_rate >= 0.15 %}#dc3545{% elif r.cefr_j_beyond_rate >= 0.10 %}#fd7e14{% else %}#28a745{% endif %};">{{ "%.1f"|format(r.cefr_j_beyond_rate * 100) }}%</span>{% else %}—{% endif %}</td>
+            <td class="center">{% if r.avg_sentence_length is not none %}<span style="font-weight:600; color:{% if r.avg_sentence_length >= 25 %}#dc3545{% elif r.avg_sentence_length >= 20 %}#fd7e14{% else %}#28a745{% endif %};">{{ "%.1f"|format(r.avg_sentence_length) }}</span>{% else %}—{% endif %}</td>
+            {% if wordbook %}
+            <td class="center">
+                {% if r.vocab_coverage is not none %}
+                <span style="font-weight:600; color:{% if r.vocab_coverage >= 0.95 %}#0d6efd{% elif r.vocab_coverage >= 0.90 %}#28a745{% elif r.vocab_coverage >= 0.85 %}#fd7e14{% else %}#dc3545{% endif %};">
+                    {{ "%.1f"|format(r.vocab_coverage * 100) }}%
+                </span>
+                {% else %}—{% endif %}
+            </td>
+            {% endif %}
         </tr>
         {% endfor %}
     </tbody>

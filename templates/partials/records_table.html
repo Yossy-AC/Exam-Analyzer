@@ -2,7 +2,7 @@
 <table class="table" id="passages-table">
     <thead>
         <tr>
-            <th class="center"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+            {% if not readonly %}<th class="center"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>{% endif %}
             <th>ID</th>
             <th>大学</th>
             <th>年度</th>
@@ -22,8 +22,8 @@
             <th>和英</th>
             <th>自英</th>
             <th>視覚</th>
-            <th>済</th>
-            <th>操作</th>
+            {% if not readonly %}<th>済</th>{% endif %}
+            {% if not readonly %}<th>操作</th>{% endif %}
         </tr>
     </thead>
     <tbody>

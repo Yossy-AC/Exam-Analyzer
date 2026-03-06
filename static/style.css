@@ -464,6 +464,71 @@ canvas { max-height: 500px; }
     .print-table td { border: 1px solid #ccc; padding: 4px 8px; }
 }
 
+/* フィルターパネル（details/summary） */
+.filter-panel {
+    position: relative;
+    align-self: flex-end;
+}
+.filter-panel > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    background: var(--surface);
+    color: var(--text);
+    user-select: none;
+    white-space: nowrap;
+    line-height: 1.5;
+    display: inline-block;
+}
+.filter-panel > summary::-webkit-details-marker { display: none; }
+.filter-panel > summary::after { content: ' ▾'; }
+.filter-panel[open] > summary::after { content: ' ▴'; }
+.filter-panel.is-filtered > summary {
+    background: color-mix(in srgb, var(--warning) 20%, var(--surface));
+    border-color: var(--warning);
+    color: #856404;
+}
+[data-theme="dark"] .filter-panel.is-filtered > summary { color: var(--warning); }
+
+.filter-panel-body {
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.filter-panel-body .filter-section-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+.filter-panel-body .filter-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+/* デスクトップ: フローティングパネル */
+@media (min-width: 769px) {
+    .filter-panel-body {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        z-index: 200;
+        min-width: 480px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        margin-top: 0;
+    }
+}
+
 /* 信頼度警告 */
 tr.low-confidence { background: color-mix(in srgb, var(--warning) 15%, var(--surface)); }
 tr.low-confidence:hover { background: color-mix(in srgb, var(--warning) 25%, var(--surface)); }

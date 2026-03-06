@@ -1,5 +1,5 @@
 <tr id="row-{{ p.id }}" data-passage-id="{{ p.id }}" {% if p.low_confidence %}class="low-confidence"{% endif %}>
-    <td class="center"><input type="checkbox" class="row-select" value="{{ p.id }}"></td>
+    {% if not readonly %}<td class="center"><input type="checkbox" class="row-select" value="{{ p.id }}"></td>{% endif %}
     <td class="id-cell">{{ p.id }}{% if p.low_confidence %}<br><span class="confidence-warn" title="要確認">{{ p.low_confidence_fields }}</span>{% endif %}</td>
     <td>{{ p.university }}</td>
     <td>{{ p.year }}</td>
@@ -58,6 +58,7 @@
     <td class="center">{{ '○' if p.has_wabun_eiyaku else '' }}</td>
     <td class="center">{{ '○' if p.has_jiyu_eisakubun else '' }}</td>
     <td class="center">{{ p.visual_info_type if p.has_visual_info else '' }}</td>
+    {% if not readonly %}
     <td class="center">
         <input type="checkbox"
                {% if p.reviewed %}checked{% endif %}
@@ -74,4 +75,5 @@
                 hx-target="closest tr"
                 hx-swap="outerHTML">×</button>
     </td>
+    {% endif %}
 </tr>
