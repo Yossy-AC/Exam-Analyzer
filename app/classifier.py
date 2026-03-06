@@ -19,7 +19,7 @@ from app.config import (
 )
 from app.db import get_connection
 from app.models import ClassificationResult, ParsedQuestion
-from app.prompts import SYSTEM_PROMPT, USER_PROMPT
+from app.prompts import CEFR_SYSTEM_PROMPT, CEFR_USER_PROMPT, SYSTEM_PROMPT, USER_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +108,80 @@ def _validate_question_flags(text_type: str, questions_section: str, result: Cla
     return result
 
 
+def _score_to_level(score: float) -> str:
+    """数値スコア（1.0〜5.0）からCEFRレベル文字列を導出する。"""
+    if score < 1.5:
+        return "A2"
+    elif score < 2.5:
+        return "B1"
+    elif score < 3.5:
+        return "B2"
+    elif score < 4.5:
+        return "C1"
+    else:
+        return "C2"
+
+
+async def estimate_cefr(
+    passage_id: str,
+    text_body: str,
+    university: str,
+    year: int,
+    text_style: str,
+    vocab: dict,
+) -> dict:
+    """長文パッセージのCEFRレベルを推定する。
+
+    Returns:
+        {"cefr_score": 3.0, "cefr_level": "B2", "cefr_confidence": "high"}
+    """
+    cefr_j_profile = vocab.get("cefr_j_profile", {})
+    if isinstance(cefr_j_profile, str):
+        cefr_j_profile = json.loads(cefr_j_profile) if cefr_j_profile else {}
+
+    beyond = vocab.get("cefr_j_beyond_rate")
+    ngsl = vocab.get("ngsl_uncovered_rate")
+    nawl = vocab.get("nawl_rate")
+    avg_sent = vocab.get("avg_sentence_length")
+
+    prompt = CEFR_USER_PROMPT.format(
+        university=university,
+        year=year,
+        text_style=text_style or "不明",
+        avg_sentence_length=f"{avg_sent:.1f}" if avg_sent is not None else "不明",
+        cefr_j_beyond_rate=f"{beyond:.3f}" if beyond is not None else "不明",
+        ngsl_uncovered_rate=f"{ngsl:.3f}" if ngsl is not None else "不明",
+        nawl_rate=f"{nawl:.3f}" if nawl is not None else "不明",
+        cefr_j_profile=cefr_j_profile,
+        text_body=text_body[:3000],
+    )
+    model = _select_model(university)
+    raw = await _call_claude(CEFR_SYSTEM_PROMPT, prompt, model)
+    data = _parse_json_response(raw)
+
+    raw_score = data.get("cefr_score")
+    cefr_confidence = data.get("cefr_confidence", "medium")
+
+    # スコアのバリデーション（1.0〜5.0の0.5刻みに正規化）
+    try:
+        score = float(raw_score)
+        score = max(1.0, min(5.0, round(score * 2) / 2))  # 0.5刻みにスナップ
+    except (TypeError, ValueError):
+        logger.warning("Invalid cefr_score %r for %s, setting None", raw_score, passage_id)
+        score = None
+
+    if cefr_confidence not in ("high", "medium", "low"):
+        cefr_confidence = "medium"
+
+    cefr_level = _score_to_level(score) if score is not None else ""
+
+    return {
+        "cefr_score": score,
+        "cefr_level": cefr_level,
+        "cefr_confidence": cefr_confidence,
+    }
+
+
 async def classify_passage(pq: ParsedQuestion) -> dict:
     """パッセージを完全に分類する（統合プロンプトで1回のAPI呼び出し）。"""
     prompt = USER_PROMPT.format(
@@ -163,6 +237,7 @@ async def classify_passage(pq: ParsedQuestion) -> dict:
         "faculty": pq.faculty,
         "question_number": pq.question_number,
         "passage_index": pq.passage_index,
+        "text_body": pq.text_section,
         "text_type": result.text_type,
         "text_style": result.text_style,
         "word_count": result.word_count,

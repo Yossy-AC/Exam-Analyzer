@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "data" / "exam.db"))
 INPUT_MD_DIR = str(BASE_DIR / "data" / "input_md")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
 CLAUDE_MODEL_DEFAULT = "claude-sonnet-4-6"
 CLAUDE_MODEL_PREMIUM = "claude-opus-4-6"
 PREMIUM_UNIVERSITY_CLASSES = {"旧帝大", "難関大", "準難関大"}

@@ -16,15 +16,32 @@ from app.auth import is_student
 from app.classifier import classify_passage
 from app.config import INPUT_MD_DIR
 from app.db import get_connection
+from app.embedding import embed_text, encode_embedding
 from app.parser import parse_md
+from app.vocab_analyzer import analyze_vocab
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
-def _save_passage(data: dict) -> None:
+async def _save_passage(data: dict) -> None:
     """分類結果をDBに保存する。既存IDはスキップ。未登録大学は自動追加。"""
+    # long_readingの場合、語彙分析を実行
+    import json
+    text_body = data.get("text_body", "")
+    vocab = {}
+    embedding_blob = None
+    if data.get("text_type") == "long_reading" and text_body:
+        vocab = analyze_vocab(text_body)
+        # embedding生成（エラーは無視してNULLのまま保存）
+        try:
+            vec = await embed_text(text_body)
+            if vec:
+                embedding_blob = encode_embedding(vec)
+        except Exception as e:
+            logger.warning("embedding生成失敗 %s: %s", data.get("id"), e)
+
     conn = get_connection()
     try:
         # 未登録大学を universities テーブルに自動追加（FK制約対応）
@@ -42,8 +59,14 @@ def _save_passage(data: dict) -> None:
              has_jp_translation, has_jp_explanation, has_en_explanation,
              has_jp_summary, has_en_summary,
              has_visual_info, visual_info_type,
-             low_confidence, low_confidence_fields)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             low_confidence, low_confidence_fields,
+             text_body, avg_sentence_length,
+             cefr_j_beyond_rate, cefr_j_profile,
+             ngsl_uncovered_rate, nawl_rate,
+             target1900_coverage, target1900_profile,
+             leap_coverage, leap_profile, embedding)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["id"], data["university"], data["year"], data["faculty"],
                 data["question_number"], data["passage_index"],
@@ -67,6 +90,17 @@ def _save_passage(data: dict) -> None:
                 data.get("visual_info_type", ""),
                 data.get("low_confidence", False),
                 data.get("low_confidence_fields", ""),
+                text_body,
+                vocab.get("avg_sentence_length"),
+                vocab.get("cefr_j_beyond_rate"),
+                json.dumps(vocab.get("cefr_j_profile", {})),
+                vocab.get("ngsl_uncovered_rate"),
+                vocab.get("nawl_rate"),
+                vocab.get("target1900_coverage"),
+                json.dumps(vocab.get("target1900_profile", {})),
+                vocab.get("leap_coverage"),
+                json.dumps(vocab.get("leap_profile", {})),
+                embedding_blob,
             ),
         )
         conn.commit()
@@ -119,7 +153,7 @@ async def _process_file(job_id: int, filename: str, content: str) -> None:
         for pq in new_passages:
             try:
                 result = await classify_passage(pq)
-                _save_passage(result)
+                await _save_passage(result)
                 count += 1
                 logger.info("Classified: %s", result["id"])
             except Exception as e:

@@ -32,6 +32,16 @@
                         {% endfor %}
                     </select>
                 </label>
+                <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">CEFR
+                    <select id="filter-cefr-level" onchange="applyRecordsFilter()">
+                        <option value="">すべて</option>
+                        <option value="A2">A2</option>
+                        <option value="B1">B1</option>
+                        <option value="B2">B2</option>
+                        <option value="C1">C1</option>
+                        <option value="C2">C2</option>
+                    </select>
+                </label>
                 <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">テーマ
                     <input type="text" id="filter-theme" placeholder="部分一致"
                            style="width:110px;" oninput="applyRecordsFilter()">
@@ -219,6 +229,8 @@ function applyRecordsFilter() {
     if (textType) params.append('text_type', textType);
     const genreMain = document.getElementById('filter-genre-main')?.value;
     if (genreMain) params.append('genre_main', genreMain);
+    const cefrLevel = document.getElementById('filter-cefr-level')?.value;
+    if (cefrLevel) params.append('cefr_level', cefrLevel);
     const theme = document.getElementById('filter-theme')?.value;
     if (theme) params.append('theme', theme);
     const reviewed = document.getElementById('filter-reviewed')?.value;

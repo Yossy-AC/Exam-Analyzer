@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -17,9 +18,15 @@ from app.config import DB_PATH, INPUT_MD_DIR
 from app.db import get_connection, init_db
 from app.parser import parse_md
 from app.classifier import classify_passage
+from app.vocab_analyzer import analyze_vocab
 
 
 def _save_passage(data: dict) -> None:
+    text_body = data.get("text_body", "")
+    vocab = {}
+    if data.get("text_type") == "long_reading" and text_body:
+        vocab = analyze_vocab(text_body)
+
     conn = get_connection()
     try:
         conn.execute(
@@ -35,8 +42,15 @@ def _save_passage(data: dict) -> None:
              has_jp_written, has_en_written, has_summary, has_wabun_eiyaku, has_jiyu_eisakubun,
              has_jp_translation, has_jp_explanation, has_en_explanation,
              has_jp_summary, has_en_summary,
-             has_visual_info, visual_info_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             has_visual_info, visual_info_type,
+             low_confidence, low_confidence_fields,
+             text_body, avg_sentence_length,
+             cefr_j_beyond_rate, cefr_j_profile,
+             ngsl_uncovered_rate, nawl_rate,
+             target1900_coverage, target1900_profile,
+             leap_coverage, leap_profile)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["id"], data["university"], data["year"], data["faculty"],
                 data["question_number"], data["passage_index"],
@@ -58,6 +72,18 @@ def _save_passage(data: dict) -> None:
                 data.get("has_en_summary", False),
                 data.get("has_visual_info", False),
                 data.get("visual_info_type", ""),
+                data.get("low_confidence", False),
+                data.get("low_confidence_fields", ""),
+                text_body,
+                vocab.get("avg_sentence_length"),
+                vocab.get("cefr_j_beyond_rate"),
+                json.dumps(vocab.get("cefr_j_profile", {})),
+                vocab.get("ngsl_uncovered_rate"),
+                vocab.get("nawl_rate"),
+                vocab.get("target1900_coverage"),
+                json.dumps(vocab.get("target1900_profile", {})),
+                vocab.get("leap_coverage"),
+                json.dumps(vocab.get("leap_profile", {})),
             ),
         )
         conn.commit()

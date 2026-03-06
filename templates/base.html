@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入試問題分析システム</title>
+    <title>国公立大出題分析システム</title>
     <base href="{{ base_href | default('/') }}">
     <script>
     (function(){var t=localStorage.getItem("portal-theme");if(!t)t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)})();
@@ -19,17 +19,22 @@
 <body>
     <nav class="portal-nav">
         <div class="portal-nav-inner">
-            <a href="/" class="portal-nav-brand"><img src="/portal-assets/logo-penguin.svg" alt="Yossy Portal" class="portal-nav-icon"></a>
+            <div class="portal-nav-left">
+                <a href="/" class="portal-nav-brand"><img src="/portal-assets/logo-penguin.svg" alt="Yossy Portal" class="portal-nav-icon"></a>
+                <button class="portal-theme-toggle" aria-label="テーマ切替">&#9790;</button>
+            </div>
             <ul class="portal-nav-links">
+                {% if not is_student %}
                 <li><a href="./">分析</a></li>
                 <li><a href="manage">管理</a></li>
                 <li><a href="api/export/csv" class="ea-export-link">CSV出力</a></li>
                 <li><a href="api/export/json" class="ea-export-link">JSON出力</a></li>
                 <li><a href="api/export/db" class="ea-export-link">DB保存</a></li>
-                <li><a href="/auth/logout" class="portal-nav-logout portal-auth-logout">ログアウト</a></li>
-                <li><a href="/auth/login" class="portal-auth-login">ログイン</a></li>
+                {% endif %}
             </ul>
-            <button class="portal-theme-toggle" aria-label="テーマ切替">&#9790;</button>
+            <div class="portal-nav-right">
+                <a href="/auth/logout" class="portal-nav-logout">ログアウト</a>
+            </div>
             <button class="portal-hamburger" aria-label="メニュー" aria-expanded="false">
                 <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"/></svg>
             </button>
@@ -37,13 +42,14 @@
     </nav>
 
     <div class="portal-mobile-menu">
+        {% if not is_student %}
         <a href="./">分析</a>
         <a href="manage">管理</a>
         <a href="api/export/csv">CSV出力</a>
         <a href="api/export/json">JSON出力</a>
         <a href="api/export/db">DB保存</a>
-        <a href="/auth/logout" class="portal-nav-logout portal-auth-logout">ログアウト</a>
-        <a href="/auth/login" class="portal-auth-login">ログイン</a>
+        {% endif %}
+        <a href="/auth/logout" class="portal-nav-logout">ログアウト</a>
     </div>
 
     <main>

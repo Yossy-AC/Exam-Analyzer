@@ -29,7 +29,7 @@ from app.config import (
 )
 from app.auth import is_student
 from app.db import get_all_universities, get_connection, init_db
-from app.routers import dashboard, export, passages, universities, upload
+from app.routers import dashboard, export, passages, search, universities, upload
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ async def lifespan(app):
     logger.info("Database initialized")
     yield
 
-app = FastAPI(title="入試問題分析システム", lifespan=lifespan)
+app = FastAPI(title="国公立大出題分析システム", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -56,6 +56,7 @@ app.include_router(passages.router)
 app.include_router(dashboard.router)
 app.include_router(export.router)
 app.include_router(universities.router)
+app.include_router(search.router)
 
 PUBLIC_PATHS = ("/login", "/static", "/favicon.ico")
 
@@ -170,6 +171,7 @@ async def index(request: Request):
         {
             "request": request,
             "base_href": _base_href(request),
+            "is_student": is_student(request),
             "years": years,
             "universities": universities,
             "genre_list": GENRE_MAIN_LIST,

@@ -32,6 +32,7 @@ async def list_passages(
     reviewed: bool = None,
     university_name: str = None,
     theme: str = None,
+    cefr_level: str = None,
 ):
     """フィルタ付きパッセージ一覧。"""
     conn = get_connection()
@@ -62,6 +63,9 @@ async def list_passages(
         if theme:
             query += " AND p.theme LIKE ?"
             params.append(f"%{theme}%")
+        if cefr_level:
+            query += " AND p.cefr_level = ?"
+            params.append(cefr_level)
 
         query += " ORDER BY p.year DESC, p.university, p.question_number, p.passage_index"
         rows = conn.execute(query, params).fetchall()

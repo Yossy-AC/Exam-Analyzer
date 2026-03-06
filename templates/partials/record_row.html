@@ -18,6 +18,9 @@
         </select>
     </td>
     <td>{{ p.word_count or '' }}</td>
+    <td class="center">
+        {% if p.cefr_level %}<span class="cefr-badge cefr-{{ p.cefr_level }}">{{ p.cefr_level }}{% if p.cefr_score %} {{ "%.1f"|format(p.cefr_score) }}{% endif %}</span>{% endif %}
+    </td>
     <td>
         <select hx-put="/api/passages/{{ p.id }}"
                 hx-target="#row-{{ p.id }}"

@@ -1,4 +1,4 @@
-# 入試問題分析システム
+# 国公立大出題分析システム
 
 ## プロジェクト概要
 国公立大学の入試英語問題（OCR済みMD形式）を Claude API で自動分類し、ダッシュボードで可視化・編集するWebアプリ。
@@ -10,6 +10,9 @@
 - **分類API**: 大学クラスに応じてモデルを自動選択（統合プロンプトで1回呼び出し）
   - 旧帝大・難関大・準難関大 → Claude Opus (`claude-opus-4-6`)
   - その他 → Claude Sonnet (`claude-sonnet-4-6`)
+- **CEFR推定**: Claude APIで長文のCEFRレベル（A2〜C2）を推定
+- **Embedding**: Voyage AI (`voyage-4`, 1024次元) でテキスト類似度検索
+- **語彙分析**: NLTK + 5語彙リスト（CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
 - **デプロイ**: Fly.io (東京リージョン nrt)
 
 ## ディレクトリ構成
@@ -22,13 +25,18 @@ exam-analyzer/
 │   ├── db.py               # SQLite接続、スキーマ、シードデータ
 │   ├── parser.py           # MDファイルパーサー
 │   ├── classifier.py       # Claude API呼び出し（統合プロンプト、モデル自動選択）
-│   ├── prompts.py          # プロンプト定義（統合 + 旧互換）
+│   ├── prompts.py          # プロンプト定義（統合 + CEFR推定 + 旧互換）
 │   ├── models.py           # Pydanticモデル（ClassificationResult等）
+│   ├── vocab_analyzer.py   # 語彙分析（5リスト照合・平均文長・CEFR-J分布）
+│   ├── embedding.py        # Voyage AI embedding（voyage-4, 1024次元）
+│   ├── search.py           # 類似長文検索（コサイン類似度 / 特徴量フォールバック）
+│   ├── wordlists/          # 語彙リストデータ（CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
 │   └── routers/            # エンドポイント群
 │       ├── upload.py       # アップロード・解析・レビューリスト
 │       ├── passages.py     # CRUD・インライン編集・手動追加・カラムフィルター
 │       ├── dashboard.py    # 集計・グラフデータ（7エンドポイント）
 │       ├── export.py       # CSV/JSON/DBエクスポート
+│       ├── search.py       # 類似長文検索API・HTMXパーシャル
 │       └── universities.py # 大学分類・地域設定管理
 ├── templates/              # Jinja2テンプレート
 │   ├── base.html
@@ -61,6 +69,7 @@ fly deploy
 ## 環境変数 (.env)
 ```
 ANTHROPIC_API_KEY=sk-ant-xxxxx      # 必須: Claude API キー
+VOYAGE_API_KEY=pa-xxxxx             # 必須: Voyage AI API キー（embedding用）
 ADMIN_PASSWORD_HASH=                 # 任意: bcryptハッシュ（空なら認証なし）
 SECRET_KEY=change-me-in-production   # 任意: セッション署名キー
 DB_PATH=./data/exam.db               # DB保存先
@@ -115,6 +124,20 @@ DB_PATH=./data/exam.db               # DB保存先
 - 旧帝大・難関大・準難関大 → Opus（高精度）
 - その他国立大・公立大・未設定 → Sonnet（コスト効率）
 - `classifier.py` の `_select_model()` がDBの `university_class` を参照して決定
+
+## 語彙分析・CEFR推定・類似長文検索
+- `vocab_analyzer.py`: long_readingのtext_bodyから語彙指標を自動計算（アップロード時）
+  - CEFR-Jレベル別分布 + B2超過率、NGSL未カバー率、NAWL率、ターゲット1900/LEAPカバー率、平均文長
+- `classifier.py` の `estimate_cefr()`: Claude APIでCEFRレベル（A2〜C2）+ 信頼度を推定
+  - 入力: text_body先頭3000字 + 語彙指標
+  - cefr_score: A2=1, B1=2, B2=3, C1=3.5, C2=4（数値化）
+- `embedding.py`: Voyage AI voyage-4モデル（1024次元）でtext_bodyをembedding化
+  - アップロード時に自動生成、embedding IS NULLのパッセージは`backfill_embedding.py`で一括付与
+  - Tier 1: 2,000 RPM / 8M TPM、無料枠200Mトークン
+- `search.py`: 類似長文検索
+  - embedding両方あり → コサイン類似度（ジャンル一致+0.02）
+  - embedding片方なし → 特徴量ベース加重距離（cefr_score 50%, avg_sentence_length 20%, ngsl/nawl各15%）
+- 一括更新スクリプト: `backfill_text.py`（text_body+語彙）、`backfill_cefr.py`（CEFR推定）、`backfill_embedding.py`（embedding付与）
 
 ## データ管理
 - 全データ削除: `POST /api/passages/delete-all`

@@ -29,6 +29,12 @@ EXPORT_COLUMNS = [
     "has_visual_info", "visual_info_type",
     "low_confidence", "low_confidence_fields",
     "reviewed", "notes",
+    "text_body",
+    "avg_sentence_length", "cefr_j_beyond_rate", "cefr_j_profile",
+    "ngsl_uncovered_rate", "nawl_rate",
+    "target1900_coverage", "target1900_profile",
+    "leap_coverage", "leap_profile",
+    "cefr_score", "cefr_level", "cefr_confidence",
 ]
 
 

@@ -57,6 +57,31 @@
     </div>
 </div>
 
+{% if cefr_dist.total > 0 %}
+<!-- CEFR分布 -->
+<div class="dashboard-grid" style="margin-top:16px;">
+    <div class="dashboard-section">
+        <h4>長文 CEFRレベル分布 <small style="font-weight:normal;color:#888;">（{{ cefr_dist.total }}件推定済）</small></h4>
+        <canvas id="dash-cefr-chart" height="120"></canvas>
+    </div>
+    <div class="dashboard-section">
+        <h4>CEFRレベル内訳</h4>
+        <table class="table table-compact">
+            <thead><tr><th>レベル</th><th class="center">件数</th><th class="center">割合</th></tr></thead>
+            <tbody>
+                {% for i in range(cefr_dist.labels|length) %}
+                <tr>
+                    <td><strong>{{ cefr_dist.labels[i] }}</strong></td>
+                    <td class="center">{{ cefr_dist.data[i] }}</td>
+                    <td class="center">{{ "%.0f"|format(cefr_dist.data[i] / cefr_dist.total * 100) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <script>
 (function() {
     // 問題形式分布
@@ -98,6 +123,26 @@
                         }
                     }
                 }
+            }
+        });
+    }
+
+    // CEFR分布（横棒グラフ）
+    var ctxCefr = document.getElementById('dash-cefr-chart');
+    if (ctxCefr) {
+        var cefrLabels = {{ cefr_dist.labels | tojson }};
+        var cefrData = {{ cefr_dist.data | tojson }};
+        var cefrColors = {'A2': '#76b7b2', 'B1': '#59a14f', 'B2': '#edc948', 'C1': '#f28e2b', 'C2': '#e15759'};
+        new Chart(ctxCefr.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: cefrLabels,
+                datasets: [{ data: cefrData, backgroundColor: cefrLabels.map(function(l) { return cefrColors[l] || '#bab0ac'; }) }]
+            },
+            options: {
+                indexAxis: 'y', responsive: true,
+                plugins: { legend: { display: false }, datalabels: { display: true, anchor: 'end', align: 'end', color: '#555', font: { size: 11 } } },
+                scales: { x: { beginAtZero: true } }
             }
         });
     }

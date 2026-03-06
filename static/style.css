@@ -362,6 +362,21 @@ canvas { max-height: 500px; }
 .badge-teal { background: #76b7b2; }
 .badge-green { background: #59a14f; }
 
+/* CEFR badges */
+.cefr-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+}
+.cefr-A2 { background: #76b7b2; }
+.cefr-B1 { background: #59a14f; }
+.cefr-B2 { background: #edc948; color: #555; }
+.cefr-C1 { background: #f28e2b; }
+.cefr-C2 { background: #e15759; }
+
 /* Theme list */
 .theme-list {
     list-style: none;

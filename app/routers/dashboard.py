@@ -94,6 +94,12 @@ async def dashboard_partial(
         comp_uni_count = conn.execute(
             f"SELECT COUNT(DISTINCT university) as cnt FROM passages {where} AND (has_wabun_eiyaku = 1 OR has_jiyu_eisakubun = 1)", params
         ).fetchone()["cnt"]
+
+        # CEFR分布（long_readingかつスコアあり）
+        cefr_rows = conn.execute(
+            f"SELECT cefr_level, COUNT(*) as count FROM passages {where} AND text_type = 'long_reading' AND cefr_level != '' GROUP BY cefr_level",
+            params,
+        ).fetchall()
     finally:
         conn.close()
 
@@ -117,6 +123,15 @@ async def dashboard_partial(
         if r["text_style"] not in LOGICAL_STYLES:
             style_summary.append({"label": r["text_style"], "count": r["count"]})
 
+    # CEFR分布（A2→C2の順に並べる）
+    cefr_order = ["A2", "B1", "B2", "C1", "C2"]
+    cefr_map = {r["cefr_level"]: r["count"] for r in cefr_rows}
+    cefr_dist = {
+        "labels": [lv for lv in cefr_order if cefr_map.get(lv, 0) > 0],
+        "data": [cefr_map[lv] for lv in cefr_order if cefr_map.get(lv, 0) > 0],
+        "total": sum(cefr_map.values()),
+    }
+
     return templates.TemplateResponse(
         "partials/dashboard.html",
         {
@@ -136,6 +151,7 @@ async def dashboard_partial(
                 "labels": ["出題あり", "出題なし"],
                 "data": [comp_uni_count, total_universities - comp_uni_count],
             },
+            "cefr_dist": cefr_dist,
         },
     )
 

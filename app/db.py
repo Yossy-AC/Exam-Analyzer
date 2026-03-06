@@ -55,6 +55,23 @@ CREATE TABLE IF NOT EXISTS passages (
     notes TEXT DEFAULT '',
     extracted_at TEXT DEFAULT (datetime('now')),
 
+    text_body TEXT DEFAULT '',
+    avg_sentence_length REAL,
+    cefr_j_beyond_rate REAL,
+    cefr_j_profile TEXT DEFAULT '',
+    ngsl_uncovered_rate REAL,
+    nawl_rate REAL,
+    target1900_coverage REAL,
+    target1900_profile TEXT DEFAULT '',
+    leap_coverage REAL,
+    leap_profile TEXT DEFAULT '',
+
+    cefr_level TEXT DEFAULT '',
+    cefr_confidence TEXT DEFAULT '',
+    cefr_score REAL,
+
+    embedding BLOB,
+
     UNIQUE(university, year, question_number, passage_index),
     FOREIGN KEY (university) REFERENCES universities(name)
 );
@@ -122,6 +139,23 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
         ("has_en_summary", "BOOLEAN DEFAULT 0"),
         ("low_confidence", "BOOLEAN DEFAULT 0"),
         ("low_confidence_fields", "TEXT DEFAULT ''"),
+        # Phase A: テキスト格納 + 語彙分析
+        ("text_body", "TEXT DEFAULT ''"),
+        ("avg_sentence_length", "REAL"),
+        ("cefr_j_beyond_rate", "REAL"),
+        ("cefr_j_profile", "TEXT DEFAULT ''"),
+        ("ngsl_uncovered_rate", "REAL"),
+        ("nawl_rate", "REAL"),
+        ("target1900_coverage", "REAL"),
+        ("target1900_profile", "TEXT DEFAULT ''"),
+        ("leap_coverage", "REAL"),
+        ("leap_profile", "TEXT DEFAULT ''"),
+        # Phase B: CEFR推定
+        ("cefr_level", "TEXT DEFAULT ''"),
+        ("cefr_confidence", "TEXT DEFAULT ''"),
+        ("cefr_score", "REAL"),
+        # Phase C: Embedding（将来）
+        ("embedding", "BLOB"),
     ]
     for col, typedef in migrations:
         if col not in existing:
@@ -139,6 +173,10 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
     jobs_existing = {row[1] for row in conn.execute("PRAGMA table_info(analysis_jobs)").fetchall()}
     if "reviewed" not in jobs_existing:
         conn.execute("ALTER TABLE analysis_jobs ADD COLUMN reviewed BOOLEAN DEFAULT 0")
+
+    # CEFRインデックス（cefr_levelカラム追加後に作成）
+    if "cefr_level" in existing:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_passages_cefr ON passages(cefr_level)")
 
     # 旧UNIQUE制約（faculty含む）からの移行
     idx_info = conn.execute("PRAGMA index_list(passages)").fetchall()
@@ -183,6 +221,20 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
                     reviewed BOOLEAN DEFAULT 0,
                     notes TEXT DEFAULT '',
                     extracted_at TEXT DEFAULT (datetime('now')),
+                    text_body TEXT DEFAULT '',
+                    avg_sentence_length REAL,
+                    cefr_j_beyond_rate REAL,
+                    cefr_j_profile TEXT DEFAULT '',
+                    ngsl_uncovered_rate REAL,
+                    nawl_rate REAL,
+                    target1900_coverage REAL,
+                    target1900_profile TEXT DEFAULT '',
+                    leap_coverage REAL,
+                    leap_profile TEXT DEFAULT '',
+                    cefr_level TEXT DEFAULT '',
+                    cefr_confidence TEXT DEFAULT '',
+                    cefr_score REAL,
+                    embedding BLOB,
                     UNIQUE(university, year, question_number, passage_index),
                     FOREIGN KEY (university) REFERENCES universities(name)
                 );
@@ -191,6 +243,7 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
                 CREATE INDEX IF NOT EXISTS idx_passages_university ON passages(university);
                 CREATE INDEX IF NOT EXISTS idx_passages_year ON passages(year);
                 CREATE INDEX IF NOT EXISTS idx_passages_genre ON passages(genre_main);
+                CREATE INDEX IF NOT EXISTS idx_passages_cefr ON passages(cefr_level);
             """)
             break
 

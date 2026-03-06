@@ -80,7 +80,10 @@
             <button class="tab" data-tab="compare">大学間比較</button>
             <button class="tab" data-tab="uni-profile">大学別傾向</button>
             <button class="tab" data-tab="yearly">経年変化</button>
+            {% if not is_student %}
+            <button class="tab" data-tab="similar">類似検索</button>
             <a class="tab" href="manage" style="text-decoration:none;">管理</a>
+            {% endif %}
         </div>
         <!-- モバイル: 4タブ -->
         <div class="tabs mobile-tabs">
@@ -255,6 +258,65 @@
             </div>
         </div>
 
+    <!-- タブ8: 類似長文検索（staffのみ） -->
+    {% if not is_student %}
+    <div class="tab-panel" id="tab-similar">
+        <div class="tab-controls" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
+            <label style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:180px;">
+                <span style="font-size:12px; color:#6c757d;">基準パッセージ</span>
+                <select id="similar-passage-id" style="min-width:200px;">
+                    <option value="">読み込み中...</option>
+                </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:12px; color:#6c757d;">CEFR下限</span>
+                <select id="similar-cefr-min" style="min-width:70px;">
+                    <option value="">制限なし</option>
+                    <option value="1.0">A2</option>
+                    <option value="2.0">B1</option>
+                    <option value="3.0">B2</option>
+                    <option value="4.0">C1</option>
+                </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:12px; color:#6c757d;">CEFR上限</span>
+                <select id="similar-cefr-max" style="min-width:70px;">
+                    <option value="">制限なし</option>
+                    <option value="2.0">B1</option>
+                    <option value="3.0">B2</option>
+                    <option value="4.0">C1</option>
+                    <option value="5.0">C2</option>
+                </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:12px; color:#6c757d;">ジャンル</span>
+                <select id="similar-genre" style="min-width:120px;">
+                    <option value="">指定なし</option>
+                    {% for g in genre_list %}
+                    <option value="{{ g }}">{{ g }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:12px; color:#6c757d;">件数</span>
+                <select id="similar-top-k" style="min-width:60px;">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                </select>
+            </label>
+            <label style="display:flex; align-items:center; gap:4px; padding-bottom:4px;">
+                <input type="checkbox" id="similar-exclude-same" checked>
+                <span style="font-size:12px;">同一大学を除く</span>
+            </label>
+            <button class="btn btn-primary" onclick="loadSimilar()">検索</button>
+        </div>
+        <div id="similar-results">
+            <p class="muted">パッセージを選択して検索してください</p>
+        </div>
+    </div>
+    {% endif %}
+
     </section>
 </div>
 
@@ -342,6 +404,7 @@ function switchTab(name) {
     if (name === 'dashboard') loadDashboard();
     if (name === 'reading') loadReadingStats();
     if (name === 'composition') loadCompositionStats();
+    if (name === 'similar') loadSimilarPassageList();
 }
 
 // モバイル: 複数パネルをまとめて表示
@@ -799,5 +862,52 @@ async function loadYearlyTrend() {
     });
 }
 
+
+// 類似長文検索
+let _similarPassagesLoaded = false;
+function loadSimilarPassageList() {
+    if (_similarPassagesLoaded) return;
+    _similarPassagesLoaded = true;
+    fetch(BASE + 'api/search/passages')
+        .then(r => r.json())
+        .then(data => {
+            var sel = document.getElementById('similar-passage-id');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- パッセージを選択 --</option>';
+            data.forEach(function(p) {
+                var opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.label;
+                sel.appendChild(opt);
+            });
+        })
+        .catch(function() {
+            var sel = document.getElementById('similar-passage-id');
+            if (sel) sel.innerHTML = '<option value="">読み込みエラー</option>';
+        });
+}
+
+function loadSimilar() {
+    var pid = document.getElementById('similar-passage-id').value;
+    var topK = document.getElementById('similar-top-k').value;
+    var cefrMin = document.getElementById('similar-cefr-min').value;
+    var cefrMax = document.getElementById('similar-cefr-max').value;
+    var genre = document.getElementById('similar-genre').value;
+    var excl = document.getElementById('similar-exclude-same').checked ? 1 : 0;
+
+    if (!pid) { alert('パッセージを選択してください'); return; }
+
+    var params = new URLSearchParams({ passage_id: pid, top_k: topK, exclude_same_university: excl });
+    if (cefrMin) params.set('cefr_min', cefrMin);
+    if (cefrMax) params.set('cefr_max', cefrMax);
+    if (genre) params.set('genre_main', genre);
+
+    var el = document.getElementById('similar-results');
+    el.innerHTML = '<p class="muted">検索中...</p>';
+    fetch(BASE + 'api/search/similar?' + params.toString())
+        .then(r => r.text())
+        .then(html => { el.innerHTML = html; })
+        .catch(function() { el.innerHTML = '<p class="muted">エラーが発生しました</p>'; });
+}
 </script>
 {% endblock %}
