@@ -1,11 +1,11 @@
 <tr id="row-{{ p.id }}" data-passage-id="{{ p.id }}" {% if p.low_confidence %}class="low-confidence"{% endif %}>
     {% if not readonly %}<td class="center"><input type="checkbox" class="row-select" value="{{ p.id }}"></td>{% endif %}
-    <td class="id-cell">{{ p.id }}{% if p.low_confidence %}<br><span class="confidence-warn" title="要確認">{{ p.low_confidence_fields }}</span>{% endif %}</td>
+    <td class="id-cell">{{ p.id }}{% if p.low_confidence %} <span class="confidence-warn" title="要確認: {{ p.low_confidence_fields }}">&#9888;</span>{% endif %}</td>
     <td>{{ p.university }}</td>
     <td>{{ p.year }}</td>
     <td>{{ p.question_number }}-{{ p.passage_index }}</td>
     <td>{{ p.text_type }}</td>
-    <td>
+    <td class="staff-only">
         <select hx-put="/api/passages/{{ p.id }}"
                 hx-target="#row-{{ p.id }}"
                 hx-swap="outerHTML"
@@ -22,6 +22,7 @@
         {% if p.cefr_level %}<span class="cefr-badge cefr-{{ p.cefr_level }}">{{ p.cefr_level }}{% if p.cefr_score %} {{ "%.1f"|format(p.cefr_score) }}{% endif %}</span>{% endif %}
     </td>
     <td>
+        {% if not readonly %}
         <select hx-put="/api/passages/{{ p.id }}"
                 hx-target="#row-{{ p.id }}"
                 hx-swap="outerHTML"
@@ -31,8 +32,11 @@
             <option value="{{ g }}" {% if p.genre_main == g %}selected{% endif %}>{{ g }}</option>
             {% endfor %}
         </select>
+        {% else %}
+        {{ p.genre_main }}
+        {% endif %}
     </td>
-    <td>
+    <td class="staff-only">
         <input type="text" value="{{ p.genre_sub or '' }}"
                name="genre_sub"
                hx-put="/api/passages/{{ p.id }}"
@@ -42,6 +46,7 @@
                class="inline-input" size="8">
     </td>
     <td>
+        {% if not readonly %}
         <input type="text" value="{{ p.theme or '' }}"
                name="theme"
                hx-put="/api/passages/{{ p.id }}"
@@ -49,15 +54,18 @@
                hx-swap="outerHTML"
                hx-trigger="change"
                class="inline-input" size="12">
+        {% else %}
+        {{ p.theme or '' }}
+        {% endif %}
     </td>
-    <td class="center">{{ '○' if p.has_jp_translation else '' }}</td>
-    <td class="center">{{ '○' if p.has_jp_explanation else '' }}</td>
-    <td class="center">{{ '○' if p.has_en_explanation else '' }}</td>
-    <td class="center">{{ '○' if p.has_jp_summary else '' }}</td>
-    <td class="center">{{ '○' if p.has_en_summary else '' }}</td>
-    <td class="center">{{ '○' if p.has_wabun_eiyaku else '' }}</td>
-    <td class="center">{{ '○' if p.has_jiyu_eisakubun else '' }}</td>
-    <td class="center">{{ p.visual_info_type if p.has_visual_info else '' }}</td>
+    <td class="staff-only center">{{ '○' if p.has_jp_translation else '' }}</td>
+    <td class="staff-only center">{{ '○' if p.has_jp_explanation else '' }}</td>
+    <td class="staff-only center">{{ '○' if p.has_en_explanation else '' }}</td>
+    <td class="staff-only center">{{ '○' if p.has_jp_summary else '' }}</td>
+    <td class="staff-only center">{{ '○' if p.has_en_summary else '' }}</td>
+    <td class="staff-only center">{{ '○' if p.has_wabun_eiyaku else '' }}</td>
+    <td class="staff-only center">{{ '○' if p.has_jiyu_eisakubun else '' }}</td>
+    <td class="staff-only center">{{ p.visual_info_type if p.has_visual_info else '' }}</td>
     {% if not readonly %}
     <td class="center">
         <input type="checkbox"

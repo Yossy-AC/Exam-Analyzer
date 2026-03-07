@@ -132,7 +132,7 @@ async def _process_file(job_id: int, filename: str, content: str) -> None:
     try:
         passages = parse_md(content, filename)
         if not passages:
-            _update_job(job_id, "completed", 0, "パッセージが抽出できませんでした")
+            _update_job(job_id, "completed", 0, f"{filename}: パッセージが抽出できませんでした。Markdownの見出し構造(## )を確認してください")
             return
 
         # 既にDB登録済みのIDをチェック
@@ -174,12 +174,21 @@ async def upload_files(request: Request, files: list[UploadFile], background_tas
     Path(INPUT_MD_DIR).mkdir(parents=True, exist_ok=True)
     job_ids = []
 
+    MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+
     for file in files:
         if not file.filename or not file.filename.endswith(".md"):
             continue
 
         content_bytes = await file.read()
-        content = content_bytes.decode("utf-8")
+        if len(content_bytes) > MAX_UPLOAD_SIZE:
+            logger.warning("Upload too large: %s (%d bytes)", file.filename, len(content_bytes))
+            continue
+        try:
+            content = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning("Non-UTF-8 file skipped: %s", file.filename)
+            continue
 
         # ファイルを保存
         save_path = Path(INPUT_MD_DIR) / file.filename

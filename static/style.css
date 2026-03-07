@@ -5,12 +5,17 @@
     --surface: #fff;
     --border: #dee2e6;
     --text: #212529;
+    --text-secondary: #555;
     --muted: #6c757d;
     --primary: #0d6efd;
     --primary-hover: #0b5ed7;
     --danger: #dc3545;
+    --danger-bg: #fde8e8;
     --success: #198754;
     --warning: #ffc107;
+    --warning-text: #e6a000;
+    --warning-bg: #fff8e1;
+    --orange: #fd7e14;
     --bg-subtle: #f1f3f5;
     --row-hover: #f8f9fa;
 }
@@ -20,12 +25,17 @@
     --surface: #2d2d2f;
     --border: #424245;
     --text: #f5f5f7;
+    --text-secondary: #c7c7cc;
     --muted: #a1a1a6;
     --primary: #2997ff;
     --primary-hover: #52a8ff;
     --danger: #ff453a;
+    --danger-bg: rgba(255, 69, 58, 0.15);
     --success: #30d158;
     --warning: #ffd60a;
+    --warning-text: #ffd60a;
+    --warning-bg: rgba(255, 214, 10, 0.12);
+    --orange: #ff9f0a;
     --bg-subtle: #38383a;
     --row-hover: #38383a;
 }
@@ -156,10 +166,10 @@ body {
 .table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: 13px;
 }
 .table th, .table td {
-    padding: 6px 8px;
+    padding: 8px 10px;
     border: 1px solid var(--border);
     text-align: left;
     white-space: nowrap;
@@ -169,10 +179,23 @@ body {
     font-weight: 600;
     position: sticky;
     top: 0;
+    cursor: default;
 }
+.table th.sortable { cursor: pointer; user-select: none; }
+.table th.sortable:hover { background: var(--row-hover); }
+.table th .sort-arrow { font-size: 10px; margin-left: 2px; opacity: 0.4; }
+.table th.sort-active .sort-arrow { opacity: 1; }
+.table tbody tr:nth-child(even) { background: var(--row-stripe, rgba(0,0,0,0.02)); }
+[data-theme="dark"] .table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
 .table tbody tr:hover { background: var(--row-hover); }
 .center { text-align: center; }
 .id-cell { font-size: 11px; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Student view: hide staff-only columns */
+.student-view .staff-only { display: none; }
+
+/* Table scroll container for mobile */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* Inline edit */
 .inline-select {
@@ -434,10 +457,12 @@ canvas { max-height: 500px; }
         width: 100%;
         border-right: none;
         border-bottom: 1px solid var(--border);
-        max-height: 200px;
-        overflow-y: auto;
     }
+    .filters > *:not(.filter-toggle) { display: none; }
+    .filters.filters-open > * { display: block; }
+    .filter-toggle { display: block !important; }
     .chart-grid { grid-template-columns: 1fr; }
+    .chart-grid-3 { grid-template-columns: 1fr; }
     .profile-grid { grid-template-columns: 1fr; }
     .profile-grid-two { grid-template-columns: 1fr; }
     .dashboard-grid { grid-template-columns: 1fr; }
@@ -449,6 +474,25 @@ canvas { max-height: 500px; }
     /* モバイルで凡例を下に配置（Chart.jsのresponsive optionsと併用） */
     canvas { max-height: 300px; }
 }
+
+/* Utility: dark-mode-safe color classes */
+.text-muted-sm { font-size: 12px; color: var(--muted); }
+.text-muted-xs { font-size: 11px; color: var(--muted); }
+.text-secondary { color: var(--text-secondary); }
+.text-danger { color: var(--danger); }
+.text-warning { color: var(--warning-text); }
+.bg-warning-subtle { background: var(--warning-bg); }
+.bg-danger-subtle { background: var(--danger-bg); }
+.bg-info-box { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 12px; margin-bottom: 16px; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; }
+.modal-card { background: var(--surface); margin: 40px auto; padding: 24px; max-width: 520px; border-radius: 8px; position: relative; }
+.similarity-high { font-weight: 600; color: var(--success); }
+.similarity-mid { font-weight: 600; color: var(--orange); }
+.similarity-low { font-weight: 600; color: var(--muted); }
+.metric-good { font-weight: 600; color: var(--success); }
+.metric-mid { font-weight: 600; color: var(--orange); }
+.metric-bad { font-weight: 600; color: var(--danger); }
+.metric-info { font-weight: 600; color: var(--primary); }
 
 /* Print styles */
 @media print {

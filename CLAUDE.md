@@ -175,3 +175,10 @@ DB_PATH=./data/exam.db               # DB保存先
 - テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`
 - 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
 - DBスキーマ変更時は `db.py` の `SCHEMA_SQL` を更新し、`init_db()` の冪等性を維持
+
+## デザイン・UI（2026年3月更新）
+- CSS: `--text-secondary`, `--danger-bg`, `--warning-bg`, `--warning-text`, `--orange` 変数追加（ダークモード対応）
+- ユーティリティクラス追加: `.text-muted-sm`, `.text-danger`, `.text-warning`, `.bg-warning-subtle`, `.bg-danger-subtle`, `.similarity-high/mid/low`, `.metric-good/mid/bad/info`, `.modal-overlay`, `.modal-card`
+- 全テンプレートのハードコード色(`#f8f9fa`等)をCSS変数・ユーティリティクラスに置換
+- Chart.js: `cssVar()`ヘルパーでダークモード対応（`labelColor()`, `borderColor()`）
+- upload.py: アップロードサイズ制限10MB追加

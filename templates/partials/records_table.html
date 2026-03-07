@@ -1,27 +1,28 @@
 {% if passages %}
+<div class="table-scroll{% if readonly %} student-view{% endif %}">
 <table class="table" id="passages-table">
     <thead>
         <tr>
             {% if not readonly %}<th class="center"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>{% endif %}
             <th>ID</th>
-            <th>大学</th>
-            <th>年度</th>
+            <th class="sortable" data-sort="university">大学<span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="year">年度<span class="sort-arrow"></span></th>
             <th>問番号</th>
-            <th>種別</th>
-            <th>文体</th>
-            <th>語数</th>
-            <th>CEFR</th>
+            <th class="sortable" data-sort="text_type">種別<span class="sort-arrow"></span></th>
+            <th class="staff-only">文体</th>
+            <th class="sortable" data-sort="word_count">語数<span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="cefr_level">CEFR<span class="sort-arrow"></span></th>
             <th>ジャンル</th>
-            <th>サブ</th>
+            <th class="staff-only">サブ</th>
             <th>テーマ</th>
-            <th>和訳</th>
-            <th>説明(日)</th>
-            <th>説明(英)</th>
-            <th>要約(日)</th>
-            <th>要約(英)</th>
-            <th>和英</th>
-            <th>自英</th>
-            <th>視覚</th>
+            <th class="staff-only center">和訳</th>
+            <th class="staff-only center">説明(日)</th>
+            <th class="staff-only center">説明(英)</th>
+            <th class="staff-only center">要約(日)</th>
+            <th class="staff-only center">要約(英)</th>
+            <th class="staff-only center">和英</th>
+            <th class="staff-only center">自英</th>
+            <th class="staff-only center">視覚</th>
             {% if not readonly %}<th>済</th>{% endif %}
             {% if not readonly %}<th>操作</th>{% endif %}
         </tr>
@@ -32,6 +33,7 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
 {% else %}
 <p class="muted">データがありません。MDファイルをアップロードしてください。</p>
 {% endif %}

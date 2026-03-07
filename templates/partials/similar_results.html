@@ -2,8 +2,8 @@
 <p class="muted">{{ error }}</p>
 {% elif source %}
 <!-- 基準パッセージ -->
-<div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px; padding:12px; margin-bottom:16px;">
-    <div style="font-size:12px; color:#6c757d; margin-bottom:4px;">基準パッセージ</div>
+<div class="bg-info-box">
+    <div class="text-muted-sm" style="margin-bottom:4px;">基準パッセージ</div>
     <div style="font-weight:600;">{{ source.university }} {{ source.year }}年度 Q{{ source.question_number }}-{{ source.passage_index }}</div>
     <div style="margin-top:4px; display:flex; gap:12px; flex-wrap:wrap; font-size:13px;">
         <span>{{ source.genre_main }}{% if source.genre_sub %} / {{ source.genre_sub }}{% endif %}</span>
@@ -18,7 +18,7 @@
 
 <!-- 類似結果 -->
 {% if results %}
-<div style="font-size:13px; color:#6c757d; margin-bottom:8px;">{{ results|length }}件の類似パッセージ（類似度順）</div>
+<div style="font-size:13px; margin-bottom:8px;" class="text-muted-sm">{{ results|length }}件の類似パッセージ（類似度順）</div>
 <table class="table table-compact">
     <thead>
         <tr>
@@ -29,18 +29,18 @@
             <th>語数</th>
             <th>C1/C2語彙率</th>
             <th>1文の平均語数</th>
-            {% if wordbook %}<th>{{ wordbook_label }}<br><span style="font-size:11px;">({{ wordbook_milestone }}番まで)</span></th>{% endif %}
+            {% if wordbook %}<th>{{ wordbook_label }}<br><span class="text-muted-xs">({{ wordbook_milestone }}番まで)</span></th>{% endif %}
         </tr>
     </thead>
     <tbody>
         {% for r in results %}
         <tr>
             <td class="center">
-                <span style="font-weight:600; color:{% if r.similarity >= 0.85 %}#28a745{% elif r.similarity >= 0.70 %}#fd7e14{% else %}#6c757d{% endif %};">
+                <span class="{% if r.similarity >= 0.85 %}similarity-high{% elif r.similarity >= 0.70 %}similarity-mid{% else %}similarity-low{% endif %}">
                     {{ "%.0f"|format(r.similarity * 100) }}%
                 </span>
             </td>
-            <td>{{ r.university }}<br><span style="font-size:11px; color:#6c757d;">{{ r.year }}年 Q{{ r.question_number }}-{{ r.passage_index }}</span></td>
+            <td>{{ r.university }}<br><span class="text-muted-xs">{{ r.year }}年 Q{{ r.question_number }}-{{ r.passage_index }}</span></td>
             <td class="center">
                 {% if r.cefr_display %}
                 <span class="cefr-badge cefr-{{ r.cefr_level }}">{{ r.cefr_display }}</span>
@@ -48,15 +48,15 @@
             </td>
             <td>
                 <span style="font-size:12px;">{{ r.genre_main or '—' }}</span>
-                {% if r.theme %}<br><span style="font-size:11px; color:#6c757d;">{{ r.theme }}</span>{% endif %}
+                {% if r.theme %}<br><span class="text-muted-xs">{{ r.theme }}</span>{% endif %}
             </td>
             <td class="center">{{ r.word_count or '—' }}</td>
-            <td class="center">{% if r.cefr_j_beyond_rate is not none %}<span style="font-weight:600; color:{% if r.cefr_j_beyond_rate >= 0.15 %}#dc3545{% elif r.cefr_j_beyond_rate >= 0.10 %}#fd7e14{% else %}#28a745{% endif %};">{{ "%.1f"|format(r.cefr_j_beyond_rate * 100) }}%</span>{% else %}—{% endif %}</td>
-            <td class="center">{% if r.avg_sentence_length is not none %}<span style="font-weight:600; color:{% if r.avg_sentence_length >= 25 %}#dc3545{% elif r.avg_sentence_length >= 20 %}#fd7e14{% else %}#28a745{% endif %};">{{ "%.1f"|format(r.avg_sentence_length) }}</span>{% else %}—{% endif %}</td>
+            <td class="center">{% if r.cefr_j_beyond_rate is not none %}<span class="{% if r.cefr_j_beyond_rate >= 0.15 %}metric-bad{% elif r.cefr_j_beyond_rate >= 0.10 %}metric-mid{% else %}metric-good{% endif %}">{{ "%.1f"|format(r.cefr_j_beyond_rate * 100) }}%</span>{% else %}—{% endif %}</td>
+            <td class="center">{% if r.avg_sentence_length is not none %}<span class="{% if r.avg_sentence_length >= 25 %}metric-bad{% elif r.avg_sentence_length >= 20 %}metric-mid{% else %}metric-good{% endif %}">{{ "%.1f"|format(r.avg_sentence_length) }}</span>{% else %}—{% endif %}</td>
             {% if wordbook %}
             <td class="center">
                 {% if r.vocab_coverage is not none %}
-                <span style="font-weight:600; color:{% if r.vocab_coverage >= 0.95 %}#0d6efd{% elif r.vocab_coverage >= 0.90 %}#28a745{% elif r.vocab_coverage >= 0.85 %}#fd7e14{% else %}#dc3545{% endif %};">
+                <span class="{% if r.vocab_coverage >= 0.95 %}metric-info{% elif r.vocab_coverage >= 0.90 %}metric-good{% elif r.vocab_coverage >= 0.85 %}metric-mid{% else %}metric-bad{% endif %}">
                     {{ "%.1f"|format(r.vocab_coverage * 100) }}%
                 </span>
                 {% else %}—{% endif %}

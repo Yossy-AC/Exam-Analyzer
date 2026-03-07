@@ -2,6 +2,7 @@
 {% block content %}
 <div class="dashboard">
     <aside class="filters">
+        <button type="button" class="filter-toggle btn btn-sm" onclick="this.parentElement.classList.toggle('filters-open')" style="display:none; width:100%; margin-bottom:8px;">フィルター ▼</button>
         <h3>フィルター</h3>
         <form id="filter-form">
             <!-- 年度 -->
@@ -15,18 +16,24 @@
                     <option value="custom">任意の期間</option>
                 </select>
                 <div id="year-custom" style="display:none; margin-top:4px;">
-                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                        <select name="year_from" id="year-from" style="flex:1; min-width:60px;">
-                            {% for y in range(current_year, current_year - 20, -1) %}
-                            <option value="{{ y }}">{{ y }}</option>
-                            {% endfor %}
-                        </select>
-                        <span style="font-size:11px; color:#6c757d;">〜</span>
-                        <select name="year_to" id="year-to" style="flex:1; min-width:60px;">
-                            {% for y in range(current_year, current_year - 20, -1) %}
-                            <option value="{{ y }}" {% if loop.first %}selected{% endif %}>{{ y }}</option>
-                            {% endfor %}
-                        </select>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:2px;">開始年</label>
+                            <select name="year_from" id="year-from" style="width:100%; min-width:80px;">
+                                {% for y in range(current_year, current_year - 20, -1) %}
+                                <option value="{{ y }}">{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <span style="font-size:14px; color:var(--muted); padding-top:14px;">〜</span>
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:2px;">終了年</label>
+                            <select name="year_to" id="year-to" style="width:100%; min-width:80px;">
+                                {% for y in range(current_year, current_year - 20, -1) %}
+                                <option value="{{ y }}" {% if loop.first %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -174,7 +181,7 @@
                     </div>
                 </details>
                 <label style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:12px; color:#6c757d;">問題形式</span>
+                    <span style="font-size:12px; color:var(--muted);">問題形式</span>
                     <select id="practice-text-type" onchange="onPracticeTextTypeChange()" style="min-width:120px;">
                         <option value="">-- 選択 --</option>
                         <option value="long_reading">長文読解</option>
@@ -184,7 +191,7 @@
                     </select>
                 </label>
                 <div id="practice-subfilters" style="display:none;">
-                    <div style="font-size:12px; color:#6c757d; margin-bottom:4px;">記述種別（複数選択可）</div>
+                    <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">記述種別（複数選択可）</div>
                     <div style="display:flex; gap:12px; flex-wrap:wrap;">
                         <label class="checkbox-item"><input type="checkbox" class="practice-sub" value="has_jp_translation"> 和訳あり</label>
                         <label class="checkbox-item"><input type="checkbox" class="practice-sub" value="has_jp_explanation"> 説明(日)あり</label>
@@ -207,7 +214,7 @@
     <div class="tab-panel" id="tab-similar">
         <div class="tab-controls" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
             <label style="display:flex; flex-direction:column; gap:4px; min-width:90px;">
-                <span style="font-size:12px; color:#6c757d;">年度</span>
+                <span style="font-size:12px; color:var(--muted);">年度</span>
                 <select id="similar-year" style="min-width:90px;" onchange="onSimilarYearChange()">
                     <option value="">読み込み中...</option>
                 </select>
@@ -238,19 +245,19 @@
                 </div>
             </details>
             <label style="display:flex; flex-direction:column; gap:4px; min-width:140px;">
-                <span style="font-size:12px; color:#6c757d;">大学</span>
+                <span style="font-size:12px; color:var(--muted);">大学</span>
                 <select id="similar-university" style="min-width:140px;" onchange="onSimilarUniversityChange()" disabled>
                     <option value="">— 年度を選択 —</option>
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px; min-width:160px;">
-                <span style="font-size:12px; color:#6c757d;">パッセージ</span>
+                <span style="font-size:12px; color:var(--muted);">パッセージ</span>
                 <select id="similar-passage-id" style="min-width:160px;" disabled>
                     <option value="">— 大学を選択 —</option>
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px;">
-                <span style="font-size:12px; color:#6c757d;">CEFR下限</span>
+                <span style="font-size:12px; color:var(--muted);">CEFR下限</span>
                 <select id="similar-cefr-min" style="min-width:70px;">
                     <option value="">制限なし</option>
                     <option value="1.0">A2</option>
@@ -260,7 +267,7 @@
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px;">
-                <span style="font-size:12px; color:#6c757d;">CEFR上限</span>
+                <span style="font-size:12px; color:var(--muted);">CEFR上限</span>
                 <select id="similar-cefr-max" style="min-width:70px;">
                     <option value="">制限なし</option>
                     <option value="2.0">B1</option>
@@ -270,7 +277,7 @@
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px;">
-                <span style="font-size:12px; color:#6c757d;">ジャンル</span>
+                <span style="font-size:12px; color:var(--muted);">ジャンル</span>
                 <select id="similar-genre" style="min-width:120px;">
                     <option value="">指定なし</option>
                     {% for g in genre_list %}
@@ -279,7 +286,7 @@
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px;">
-                <span style="font-size:12px; color:#6c757d;">単語帳</span>
+                <span style="font-size:12px; color:var(--muted);">単語帳</span>
                 <select id="similar-wordbook" style="min-width:120px;" onchange="onSimilarWordbookChange()">
                     <option value="">指定なし</option>
                     <option value="target1900">T19</option>
@@ -287,13 +294,13 @@
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px;">
-                <span style="font-size:12px; color:#6c757d;">習得済み</span>
+                <span style="font-size:12px; color:var(--muted);">習得済み</span>
                 <select id="similar-wordbook-milestone" style="min-width:100px;" disabled>
                     <option value="">— 単語帳を選択 —</option>
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px;">
-                <span style="font-size:12px; color:#6c757d;">カバー率</span>
+                <span style="font-size:12px; color:var(--muted);">カバー率</span>
                 <select id="similar-vocab-min" style="min-width:90px;" disabled>
                     <option value="">制限なし</option>
                     <option value="0.85">85%以上</option>
@@ -302,7 +309,7 @@
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:4px;">
-                <span style="font-size:12px; color:#6c757d;">件数</span>
+                <span style="font-size:12px; color:var(--muted);">件数</span>
                 <select id="similar-top-k" style="min-width:60px;">
                     <option value="10">10</option>
                     <option value="20">20</option>
@@ -414,7 +421,7 @@
 
     <!-- タブ7: その他（大学間比較 / 大学別傾向 / 経年変化） -->
     <div class="tab-panel" id="tab-other">
-        <div class="tabs" style="margin-bottom:16px; border-bottom:1px solid #dee2e6;">
+        <div class="tabs" style="margin-bottom:16px; border-bottom:1px solid var(--border);">
             <button class="tab active" data-othertab="compare" onclick="switchOtherTab('compare')">大学間比較</button>
             <button class="tab" data-othertab="uni-profile" onclick="switchOtherTab('uni-profile')">大学別傾向</button>
             <button class="tab" data-othertab="yearly" onclick="switchOtherTab('yearly')">経年変化</button>
@@ -423,7 +430,7 @@
         <div class="other-sub-panel active" id="other-sub-compare">
             <div class="tab-controls" style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
                 <label style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:12px; color:#6c757d;">大学1</span>
+                    <span style="font-size:12px; color:var(--muted);">大学1</span>
                     <select id="compare-uni1" style="min-width:120px;">
                         <option value="">-- 選択 --</option>
                         {% for u in universities %}
@@ -432,7 +439,7 @@
                     </select>
                 </label>
                 <label style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:12px; color:#6c757d;">大学2</span>
+                    <span style="font-size:12px; color:var(--muted);">大学2</span>
                     <select id="compare-uni2" style="min-width:120px;">
                         <option value="">-- 選択 --</option>
                         {% for u in universities %}
@@ -441,7 +448,7 @@
                     </select>
                 </label>
                 <label style="display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:12px; color:#6c757d;">大学3</span>
+                    <span style="font-size:12px; color:var(--muted);">大学3</span>
                     <select id="compare-uni3" style="min-width:120px;">
                         <option value="">-- 選択 --</option>
                         {% for u in universities %}
@@ -717,6 +724,9 @@ function applyFilters() {
 }
 
 // Chart.js ユーティリティ
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+var labelColor = function() { return cssVar('--text-secondary') || '#555'; };
+var borderColor = function() { return cssVar('--border') || borderColor(); };
 const charts = {};
 function createChart(id, config) {
     if (charts[id]) charts[id].destroy();
@@ -897,7 +907,7 @@ async function loadReadingStats() {
             plugins: {
                 legend: { display: false },
                 datalabels: {
-                    anchor: 'end', align: 'end', color: '#333',
+                    anchor: 'end', align: 'end', color: labelColor(),
                     font: { size: 11, weight: 'bold' },
                     formatter: function(value) { return value > 0 ? value : ''; }
                 }
@@ -957,11 +967,11 @@ async function loadCompositionStats() {
         conf.options.plugins.legend.position = 'bottom';
         return conf;
     }
-    createChart('comp-presence-chart', compDoughnut(data.presence.labels, data.presence.data, ['#e15759','#dee2e6']));
+    createChart('comp-presence-chart', compDoughnut(data.presence.labels, data.presence.data, ['#e15759',borderColor()]));
     createChart('comp-type-chart', compDoughnut(data.type.labels, data.type.data,
         data.type.labels.map(function(l) { return l === '自由英作文' ? '#2c5f8a' : '#8ab4d6'; })
     ));
-    createChart('comp-visual-chart', compDoughnut(data.visual.labels, data.visual.data, ['#f28e2b','#dee2e6']));
+    createChart('comp-visual-chart', compDoughnut(data.visual.labels, data.visual.data, ['#f28e2b',borderColor()]));
 
     // 図表の種別: 表=濃い黄, グラフ=薄い黄, イラスト=水色, 写真=サーモン, その他=灰
     var vtOrder = ['表', 'グラフ', 'イラスト', '写真', 'その他'];
@@ -1176,7 +1186,7 @@ function onSimilarUniversityChange() {
     passages.forEach(function(p) {
         var opt = document.createElement('option');
         opt.value = p.id;
-        var label = 'Q' + p.question_number + '-' + p.passage_index;
+        var label = p.year + ' ' + p.university + ' Q' + p.question_number + '-' + p.passage_index;
         if (p.theme) label += ': ' + p.theme;
         if (p.cefr_display) label += ' [' + p.cefr_display + ']';
         opt.textContent = label;
@@ -1256,5 +1266,55 @@ document.addEventListener('click', function(e) {
         if (!panel.contains(e.target)) panel.removeAttribute('open');
     });
 });
+
+/* クライアントサイド テーブルソート */
+(function() {
+    var currentSort = { col: null, asc: true };
+    var CEFR_ORDER = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+
+    document.addEventListener('click', function(e) {
+        var th = e.target.closest('th.sortable');
+        if (!th) return;
+        var table = th.closest('table');
+        if (!table) return;
+
+        var col = th.dataset.sort;
+        var asc = currentSort.col === col ? !currentSort.asc : (col === 'year' ? false : true);
+        currentSort = { col: col, asc: asc };
+
+        table.querySelectorAll('th.sortable').forEach(function(h) {
+            h.classList.remove('sort-active');
+            h.querySelector('.sort-arrow').textContent = '';
+        });
+        th.classList.add('sort-active');
+        th.querySelector('.sort-arrow').textContent = asc ? ' \u25B2' : ' \u25BC';
+
+        var tbody = table.querySelector('tbody');
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+        var colIndex = Array.from(th.parentNode.children).indexOf(th);
+
+        rows.sort(function(a, b) {
+            var aCell = a.children[colIndex];
+            var bCell = b.children[colIndex];
+            if (!aCell || !bCell) return 0;
+            var aVal = (aCell.textContent || '').trim();
+            var bVal = (bCell.textContent || '').trim();
+
+            if (col === 'cefr_level') {
+                var aOrd = CEFR_ORDER[aVal.split(' ')[0]] || 0;
+                var bOrd = CEFR_ORDER[bVal.split(' ')[0]] || 0;
+                return asc ? aOrd - bOrd : bOrd - aOrd;
+            }
+            if (col === 'year' || col === 'word_count') {
+                var aNum = parseFloat(aVal) || 0;
+                var bNum = parseFloat(bVal) || 0;
+                return asc ? aNum - bNum : bNum - aNum;
+            }
+            return asc ? aVal.localeCompare(bVal, 'ja') : bVal.localeCompare(aVal, 'ja');
+        });
+
+        rows.forEach(function(row) { tbody.appendChild(row); });
+    });
+})();
 </script>
 {% endblock %}

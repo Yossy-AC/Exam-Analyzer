@@ -1,6 +1,6 @@
 <div class="university-settings">
     <h4 style="margin-bottom:12px;">大学設定
-        <span style="font-size:12px; font-weight:normal; color:#6c757d; margin-left:8px;">
+        <span style="font-size:12px; font-weight:normal; color:var(--muted); margin-left:8px;">
             分類・地域が未設定の大学を上部に表示しています
         </span>
     </h4>
@@ -20,13 +20,13 @@
         <tbody>
             {% for u in universities %}
             {% set is_unset = (u.university_class == '' or u.region == '') %}
-            <tr id="univ-row-{{ loop.index }}" {% if is_unset %}style="background:#fff8e1;"{% endif %}>
+            <tr id="univ-row-{{ loop.index }}" {% if is_unset %}class="bg-warning-subtle"{% endif %}>
                 <td>
                     <input id="name-{{ loop.index }}" type="text" value="{{ u.name }}"
-                           style="width:100%; font-size:12px; border:1px solid #ddd; padding:2px 4px; border-radius:3px;"
+                           style="width:100%; font-size:12px; border:1px solid var(--border); padding:2px 4px; border-radius:3px;"
                            data-original="{{ u.name }}">
                     {% if is_unset %}
-                    <span style="font-size:10px; color:#e15759; margin-left:4px;">未設定</span>
+                    <span style="font-size:10px; color:var(--danger); margin-left:4px;">未設定</span>
                     {% endif %}
                 </td>
                 <td>
@@ -57,7 +57,7 @@
                     </button>
                     <button class="btn btn-sm"
                             onclick="deleteUniv('{{ u.name }}', {{ loop.index }})"
-                            style="font-size:11px; padding:3px 8px; background:#e15759; color:#fff;">
+                            style="font-size:11px; padding:3px 8px; background:var(--danger); color:#fff;">
                         削除
                     </button>
                 </td>
@@ -103,8 +103,8 @@ async function saveUnivSettings(idx) {
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const row = document.getElementById('univ-row-' + idx);
-        row.style.background = '';
-        const badge = row.querySelector('span[style*="e15759"]');
+        row.classList.remove('bg-warning-subtle');
+        var badge = row.querySelector('span[style*="danger"]');
         if (badge) badge.remove();
     } catch (e) {
         alert('保存に失敗しました: ' + e.message);

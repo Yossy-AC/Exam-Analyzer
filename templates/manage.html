@@ -92,19 +92,19 @@
         </div>
 
         <!-- データ追加モーダル -->
-        <div id="add-passage-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto;">
-            <div style="background:#fff; margin:40px auto; padding:24px; max-width:520px; border-radius:8px; position:relative;">
+        <div id="add-passage-modal" class="modal-overlay">
+            <div class="modal-card">
                 <h3 style="margin:0 0 16px;">データ追加</h3>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                    <label style="font-size:13px;">大学名 <span style="color:#c44;">*</span><br>
+                    <label style="font-size:13px;">大学名 <span style="color:var(--danger);">*</span><br>
                         <input type="text" id="new-university" style="width:100%;" placeholder="例: 東京大"></label>
-                    <label style="font-size:13px;">年度 <span style="color:#c44;">*</span><br>
+                    <label style="font-size:13px;">年度 <span style="color:var(--danger);">*</span><br>
                         <input type="number" id="new-year" style="width:100%;" placeholder="例: 2024" min="1990" max="2099"></label>
-                    <label style="font-size:13px;">問番号 <span style="color:#c44;">*</span><br>
+                    <label style="font-size:13px;">問番号 <span style="color:var(--danger);">*</span><br>
                         <input type="text" id="new-question-number" style="width:100%;" value="I" placeholder="例: I, II"></label>
                     <label style="font-size:13px;">パッセージ番号<br>
                         <input type="number" id="new-passage-index" style="width:100%;" value="1" min="1"></label>
-                    <label style="font-size:13px;">種別 <span style="color:#c44;">*</span><br>
+                    <label style="font-size:13px;">種別 <span style="color:var(--danger);">*</span><br>
                         <select id="new-text-type" style="width:100%;">
                             <option value="long_reading">long_reading</option>
                             <option value="short_translation">short_translation</option>
@@ -139,7 +139,7 @@
                     <label style="font-size:13px; grid-column:1/-1;">テーマ<br>
                         <input type="text" id="new-theme" style="width:100%;"></label>
                 </div>
-                <div id="add-passage-error" style="color:#c44; font-size:13px; margin-top:8px;"></div>
+                <div id="add-passage-error" style="color:var(--danger); font-size:13px; margin-top:8px;"></div>
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
                     <button class="btn btn-sm" onclick="closeAddPassageModal()">キャンセル</button>
                     <button class="btn btn-sm btn-primary" onclick="submitAddPassage()">追加</button>
@@ -170,14 +170,14 @@
                  hx-target="#job-status"></div>
 
             <!-- 要確認リスト -->
-            <div style="margin-top:24px; border-top:1px solid #e0e0e0; padding-top:16px;">
+            <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
                     <h4 style="margin:0;">要確認リスト</h4>
                     <button class="btn btn-sm" onclick="loadPartial(BASE + 'api/review-list', 'review-list')">更新</button>
                     <button class="btn btn-sm" id="reclassify-btn" onclick="runReclassify()">その他○○ を再分類</button>
                 </div>
                 <div id="review-list">
-                    <p style="color:#888; font-size:13px;">「更新」ボタンを押して確認してください</p>
+                    <p style="color:var(--muted); font-size:13px;">「更新」ボタンを押して確認してください</p>
                 </div>
             </div>
         </div>
