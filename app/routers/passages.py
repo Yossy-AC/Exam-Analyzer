@@ -36,6 +36,8 @@ async def list_passages(
     readonly: bool = False,
 ):
     """フィルタ付きパッセージ一覧。"""
+    if is_student(request):
+        readonly = True
     conn = get_connection()
     try:
         query = "SELECT p.*, u.is_kyutei FROM passages p LEFT JOIN universities u ON p.university = u.name WHERE 1=1"

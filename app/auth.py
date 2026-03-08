@@ -11,5 +11,5 @@ def is_student(request: Request) -> bool:
     """ポータル経由のstudentロールかどうか。"""
     return (
         os.environ.get("BEHIND_PORTAL") == "true"
-        and request.headers.get("X-Portal-Role") == "student"
+        and request.headers.get("X-Portal-Role", "").startswith("student")
     )

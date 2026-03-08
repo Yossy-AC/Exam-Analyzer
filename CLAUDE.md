@@ -158,8 +158,9 @@ fly deploy
 科学・技術 / 医療・健康 / 心理・行動 / 教育・学習 / 環境・自然 / 社会・文化 / 経済・ビジネス / 歴史・哲学 / 言語・コミュニケーション / その他
 
 ## ロールガード
-- `app/auth.py` の `is_student(request)` で `BEHIND_PORTAL=true` かつ `X-Portal-Role: student` を判定
-- studentロールは管理画面(`/manage`)・全書き込みAPI（POST/PUT/DELETE/reclassify）・DB出力を拒否
+- `app/auth.py` の `is_student(request)` で `BEHIND_PORTAL=true` かつ `X-Portal-Role` が `"student"` で始まるかを判定（`startswith("student")`）
+- `student`・`student_exam`・`student_files` 全サブロールが student 扱い
+- studentロールは管理画面(`/manage`)・全書き込みAPI（POST/PUT/DELETE/reclassify）・エクスポート（CSV/JSON/DB）を拒否
 - スタンドアロン時（BEHIND_PORTAL未設定）はガード適用なし（自前bcrypt認証で全権限）
 
 ## 分析画面のタブ構成

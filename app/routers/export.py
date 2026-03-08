@@ -60,8 +60,10 @@ def _build_query(year: int = None, university: str = None, genre_main: str = Non
 
 
 @router.get("/api/export/csv")
-async def export_csv(year: int = None, university: str = None, genre_main: str = None):
+async def export_csv(request: Request, year: int = None, university: str = None, genre_main: str = None):
     """CSV出力（BOM付きUTF-8）。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     conn = get_connection()
     try:
         query, params = _build_query(year, university, genre_main)
@@ -95,8 +97,10 @@ async def export_csv(year: int = None, university: str = None, genre_main: str =
 
 
 @router.get("/api/export/json")
-async def export_json(year: int = None, university: str = None, genre_main: str = None):
+async def export_json(request: Request, year: int = None, university: str = None, genre_main: str = None):
     """JSON出力。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     conn = get_connection()
     try:
         query, params = _build_query(year, university, genre_main)

@@ -218,6 +218,8 @@ async def upload_files(request: Request, files: list[UploadFile], background_tas
 @router.get("/api/jobs")
 async def get_jobs(request: Request):
     """解析ジョブの状況一覧を返す。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     conn = get_connection()
     try:
         jobs = conn.execute(
@@ -235,6 +237,8 @@ async def get_jobs(request: Request):
 @router.get("/api/review-list")
 async def get_review_list(request: Request):
     """要確認リスト（エラージョブ・低抽出数・データ問題）を返す。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     conn = get_connection()
     try:
         problem_jobs = conn.execute("""
@@ -277,8 +281,10 @@ async def get_review_list(request: Request):
 
 
 @router.delete("/api/review-list/job/{job_id}")
-async def dismiss_review_job(job_id: int):
+async def dismiss_review_job(request: Request, job_id: int):
     """要確認リストからジョブを除外する（reviewed フラグを立てる）。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
     conn = get_connection()
     try:
         conn.execute("UPDATE analysis_jobs SET reviewed = 1 WHERE id = ?", (job_id,))
