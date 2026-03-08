@@ -3,9 +3,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR.parent / ".env")
 DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "data" / "exam.db"))
 INPUT_MD_DIR = str(BASE_DIR / "data" / "input_md")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")

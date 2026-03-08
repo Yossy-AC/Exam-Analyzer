@@ -66,14 +66,16 @@ python -m pytest tests/ -v
 fly deploy
 ```
 
-## 環境変数 (.env)
-```
-ANTHROPIC_API_KEY=sk-ant-xxxxx      # 必須: Claude API キー
-VOYAGE_API_KEY=pa-xxxxx             # 必須: Voyage AI API キー（embedding用）
-ADMIN_PASSWORD_HASH=                 # 任意: bcryptハッシュ（空なら認証なし）
-SECRET_KEY=change-me-in-production   # 任意: セッション署名キー
-DB_PATH=./data/exam.db               # DB保存先
-```
+## 環境変数
+
+中央管理: `Yossy/.env` に全サービスの環境変数を統合。`app/config.py` が `BASE_DIR.parent / ".env"` を参照。
+
+使用する変数:
+- `ANTHROPIC_API_KEY` — 必須: Claude API キー
+- `VOYAGE_API_KEY` — 必須: Voyage AI API キー（embedding用）
+- `ADMIN_PASSWORD_HASH` — 任意: bcryptハッシュ（空なら認証なし）
+- `SECRET_KEY` — 任意: セッション署名キー
+- `DB_PATH` — DB保存先（デフォルト: `./data/exam.db`）
 
 ## MDパーサーの注意点
 - 京都大: `university: (不明)`, `year: 令和7年度` → ファイル名フォールバック
