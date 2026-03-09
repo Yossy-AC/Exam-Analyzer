@@ -38,7 +38,9 @@ async def _save_passage(data: dict) -> None:
     text_body = data.get("text_body", "")
     vocab = {}
     embedding_blob = None
-    if data.get("text_type") == "long_reading" and text_body:
+    if data.get("copyright_omitted"):
+        pass  # 著作権省略パッセージは語彙分析・embedding生成をスキップ
+    elif data.get("text_type") == "long_reading" and text_body:
         vocab = analyze_vocab(text_body)
         # embedding生成（エラーは無視してNULLのまま保存）
         try:
@@ -55,6 +57,12 @@ async def _save_passage(data: dict) -> None:
             "INSERT OR IGNORE INTO universities (name, is_kyutei, is_national, is_private) VALUES (?, 0, 1, 0)",
             (data["university"],),
         )
+        # 共通テスト系は university_class を自動設定
+        if "共通テスト" in data["university"]:
+            conn.execute(
+                "UPDATE universities SET university_class='共通テスト' WHERE name=? AND (university_class IS NULL OR university_class='')",
+                (data["university"],),
+            )
         conn.execute(
             """INSERT OR IGNORE INTO passages
             (id, university, year, faculty, question_number, passage_index,
@@ -70,9 +78,9 @@ async def _save_passage(data: dict) -> None:
              cefr_j_beyond_rate, cefr_j_profile,
              ngsl_uncovered_rate, nawl_rate,
              target1900_coverage, target1900_profile,
-             leap_coverage, leap_profile, embedding)
+             leap_coverage, leap_profile, embedding, copyright_omitted)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["id"], data["university"], data["year"], data["faculty"],
                 data["question_number"], data["passage_index"],
@@ -107,6 +115,7 @@ async def _save_passage(data: dict) -> None:
                 vocab.get("leap_coverage"),
                 json.dumps(vocab.get("leap_profile", {})),
                 embedding_blob,
+                data.get("copyright_omitted", False),
             ),
         )
         conn.commit()
@@ -165,7 +174,21 @@ async def _process_file(job_id: int, filename: str, content: str) -> None:
         errors = []
         for pq in new_passages:
             try:
-                result = await classify_passage(pq)
+                if pq.copyright_omitted:
+                    result = {
+                        "id": pq.passage_id,
+                        "university": pq.university,
+                        "year": pq.year,
+                        "faculty": pq.faculty,
+                        "question_number": pq.question_number,
+                        "passage_index": pq.passage_index,
+                        "text_type": "",
+                        "genre_main": "",
+                        "text_body": pq.text_section,
+                        "copyright_omitted": True,
+                    }
+                else:
+                    result = await classify_passage(pq)
                 await _save_passage(result)
                 count += 1
                 logger.info("Classified: %s", result["id"])
@@ -247,6 +270,21 @@ async def upload_all_files(request: Request, files: list[UploadFile], background
     for file in files:
         if not file.filename:
             continue
+        # Windows環境でShift-JIS(cp932)ファイル名が送信される場合の修正
+        filename = file.filename
+        try:
+            # latin-1として解釈しcp932でデコードし直す
+            filename.encode("utf-8")  # 正常なUTF-8ならそのまま
+        except UnicodeEncodeError:
+            pass
+        else:
+            # Shift-JISバイトがlatin-1として解釈されている場合を検出
+            try:
+                raw = filename.encode("latin-1")
+                filename = raw.decode("cp932")
+                file.filename = filename
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                pass  # 正常なUTF-8ファイル名 — そのまま使う
         fname_lower = file.filename.lower()
 
         if fname_lower.endswith(".md"):
@@ -355,11 +393,13 @@ async def get_review_list(request: Request):
 
         problem_passages = conn.execute("""
             SELECT id, university, year, question_number, passage_index,
-                   genre_main, theme, low_confidence, low_confidence_fields
+                   genre_main, theme, low_confidence, low_confidence_fields,
+                   copyright_omitted
             FROM passages
             WHERE genre_main = 'その他'
                OR theme IN ('不明', '内容不明')
                OR low_confidence = 1
+               OR copyright_omitted = 1
             ORDER BY low_confidence DESC, year DESC, university, question_number
         """).fetchall()
     finally:
@@ -404,6 +444,12 @@ async def _process_pdf_file(job_id: int, filename: str, pdf_path: str) -> None:
 
             prompt_text = GEMINI_PROMPT_FILE.read_text(encoding="utf-8")
             filled_prompt = prompt_text.replace("{university}", university).replace("{year}", year)
+
+            # 共通テスト・試行調査は追加プロンプトを連結
+            if "共通テスト" in stem or "試行調査" in stem:
+                kyotsu_prompt_file = GEMINI_PROMPT_FILE.parent / "gemini_prompt_kyotsu.md"
+                if kyotsu_prompt_file.exists():
+                    filled_prompt += "\n\n" + kyotsu_prompt_file.read_text(encoding="utf-8")
 
             scanned = is_scanned_pdf(pdf_path)
             if scanned:
@@ -452,7 +498,21 @@ async def _process_pdf_file(job_id: int, filename: str, pdf_path: str) -> None:
             errors = []
             for pq in new_passages:
                 try:
-                    result = await classify_passage(pq)
+                    if pq.copyright_omitted:
+                        result = {
+                            "id": pq.passage_id,
+                            "university": pq.university,
+                            "year": pq.year,
+                            "faculty": pq.faculty,
+                            "question_number": pq.question_number,
+                            "passage_index": pq.passage_index,
+                            "text_type": "",
+                            "genre_main": "",
+                            "text_body": pq.text_section,
+                            "copyright_omitted": True,
+                        }
+                    else:
+                        result = await classify_passage(pq)
                     await _save_passage(result)
                     count += 1
                     logger.info("Classified: %s", result["id"])

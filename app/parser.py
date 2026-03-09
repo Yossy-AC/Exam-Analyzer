@@ -17,9 +17,40 @@ def extract_university_from_filename(filename: str) -> str:
         '2025東京大_問題.md' -> '東京大'
         '2025大阪大（外国語以外）_問題.md' -> '大阪大（外国語以外）'
         '2025東京都立大（理系）_問題.md' -> '東京都立大（理系）'
+        '2025第５回共通テスト_R_本試験_問題.md' -> '共通テスト（R本試験）'
+        '2025第５回共通テスト_R_試作問題.md' -> '共通テスト（R試作）'
     """
     match = re.match(r"\d{4}(.+?)_問題", filename)
-    return match.group(1) if match else filename.replace(".md", "")
+    raw = match.group(1) if match else filename.replace(".md", "")
+    return _normalize_kyotsu_test(raw)
+
+
+def _normalize_kyotsu_test(raw: str) -> str:
+    """共通テスト系・試行調査の大学名を正規化する。
+
+    '第５回共通テスト_R_本試験' → '共通テスト（R本試験）'
+    '2025第５回共通テスト_R_試作問題' → '共通テスト（R試作）'
+    '第１回試行調査_R' → '共通テスト（R試行調査1）'
+    """
+    # 試行調査 → 共通テスト系として扱う
+    m_shikou = re.search(r"第([０-９\d]+)回試行調査(?:_(.+))?", raw)
+    if m_shikou:
+        # 全角→半角数字変換
+        num = m_shikou.group(1).translate(str.maketrans("０１２３４５６７８９", "0123456789"))
+        suffix = m_shikou.group(2) or ""
+        suffix = suffix.replace("_", "")
+        label = f"{suffix}試行調査{num}" if suffix else f"試行調査{num}"
+        return f"共通テスト（{label}）"
+
+    if "共通テスト" not in raw:
+        return raw
+    m = re.search(r"共通テスト(?:_(.+))?", raw)
+    if not m or not m.group(1):
+        return "共通テスト"
+    suffix = m.group(1)  # e.g., "R_本試験", "R_試作問題"
+    suffix = re.sub(r"問題$", "", suffix)  # Remove trailing 問題
+    suffix = suffix.replace("_", "")  # "R_本試験" → "R本試験"
+    return f"共通テスト（{suffix}）"
 
 
 def normalize_year(raw_year) -> Optional[int]:
@@ -53,6 +84,12 @@ def normalize_fullwidth_roman(s: str) -> str:
     return s
 
 
+_ARABIC_TO_ROMAN = {
+    "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V",
+    "6": "VI", "7": "VII", "8": "VIII", "9": "IX", "10": "X",
+}
+
+
 def normalize_question_number(raw: str) -> str:
     """Question番号を統一形式に変換する。
 
@@ -64,15 +101,15 @@ def normalize_question_number(raw: str) -> str:
     if re.match(r"^[IVX]+$", raw):
         return raw
     # アラビア数字ならローマ数字に変換
-    arabic_to_roman = {
-        "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V",
-        "6": "VI", "7": "VII", "8": "VIII", "9": "IX", "10": "X",
-    }
+    # アラビア数字+アルファベット (共通テスト: "1A" -> "I-A")
+    m = re.match(r"^(\d+)([A-Z])$", raw)
+    if m and m.group(1) in _ARABIC_TO_ROMAN:
+        return _ARABIC_TO_ROMAN[m.group(1)] + "-" + m.group(2)
     # ハイフン付きサブ番号の場合、先頭部分のみ変換 (例: "3-1" -> "III-1")
     m = re.match(r"^(\d+)(-\d+)$", raw)
-    if m and m.group(1) in arabic_to_roman:
-        return arabic_to_roman[m.group(1)] + m.group(2)
-    return arabic_to_roman.get(raw, raw)
+    if m and m.group(1) in _ARABIC_TO_ROMAN:
+        return _ARABIC_TO_ROMAN[m.group(1)] + m.group(2)
+    return _ARABIC_TO_ROMAN.get(raw, raw)
 
 
 def parse_frontmatter(content: str) -> tuple[dict, str]:
@@ -99,7 +136,7 @@ def split_questions(body: str) -> list[tuple[str, str]]:
         # Question III (注記...) / # Question 1 (Continued)
         # Problem I / # Section 1
         # 問題I / # 問題1 / # 問題Ⅰ
-        # 第1問 / # 第2問
+        # 第1問 / # 第2問 / # 第1問A (共通テスト)
 
     Returns:
         List of (question_identifier, block_content)
@@ -109,12 +146,12 @@ def split_questions(body: str) -> list[tuple[str, str]]:
     normalized_body = normalize_fullwidth_roman(body)
 
     # 識別子パターン: ローマ数字、アラビア数字、アルファベット（ハイフン付きサブ番号含む）
-    IDENT = r"[IVX]+(?:-\d+)?|\d+(?:-\d+)?|[A-Z]"
+    IDENT = r"[IVX]+(?:-\d+)?|\d+[A-Z]?(?:-\d+)?|[A-Z]"
     pattern = re.compile(
         r"^# (?:"
         r"(?:Question|Problem|Section)\s+[\[\(]?(" + IDENT + r")[\]\)]?(?:\s+\(.*?\))?"
         r"|問題\s*(" + IDENT + r")"
-        r"|第(\d+)問"
+        r"|第(\d+)問\s*([A-Z])?"
         r")\s*$",
         re.MULTILINE
     )
@@ -124,18 +161,46 @@ def split_questions(body: str) -> list[tuple[str, str]]:
 
     blocks: list[tuple[str, str, bool]] = []
     for i, m in enumerate(matches):
-        q_id = m.group(1) or m.group(2) or m.group(3)
-        is_continued = "(Continued)" in m.group(0)
+        # group(1): Question/Problem/Section, group(2): 問題, group(3): 第N問, group(4): A/B suffix
+        q_id = m.group(1) or m.group(2)
+        if q_id is None:
+            q_id = m.group(3)
+            if m.group(4):
+                q_id += m.group(4)  # "1" + "A" -> "1A"
+        # (Continued), (cont.), (Part B) 等 → 前の同一q_idブロックにマージ
+        paren_text = m.group(0)
+        is_continued = ("(Continued)" in paren_text
+                        or "(cont.)" in paren_text
+                        or re.search(r"\(Part [A-Z]\)", paren_text) is not None)
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
         # body（元テキスト）から切り出す（normalized_bodyと同じ長さ保証）
         block_content = body[start:end].strip()
         blocks.append((q_id, block_content, is_continued))
 
-    # (Continued) ブロックを前の大問にマージ
+    # チャンク分割起因のq_id補正
+    # 1. アルファベット単体("B"等) → 直前のq_idが"NA"形式なら"NB"に補正
+    # 2. "N" → 直前が"NA"/"NB"形式なら最後のサブIDにマージ
+    for i in range(len(blocks)):
+        q_id = blocks[i][0]
+        if i == 0:
+            continue
+        prev_id = blocks[i - 1][0]
+        # パターン1: "B" → "6B" （直前が "6A" のとき）
+        if re.match(r"^[A-Z]$", q_id):
+            m_prev = re.match(r"^(\d+)[A-Z]$", prev_id)
+            if m_prev:
+                blocks[i] = (m_prev.group(1) + q_id, blocks[i][1], blocks[i][2])
+        # パターン2: "3" → 直前が "3B"/"3A" のとき、"3B"にマージ
+        elif re.match(r"^\d+$", q_id):
+            m_prev = re.match(r"^(\d+)[A-Z]$", prev_id)
+            if m_prev and m_prev.group(1) == q_id:
+                blocks[i] = (prev_id, blocks[i][1], True)  # マージフラグをTrueに
+
+    # 同一q_idの連続ブロックをマージ（(Continued) やチャンク分割による重複を統合）
     merged: list[tuple[str, str]] = []
     for q_id, content, is_continued in blocks:
-        if is_continued and merged and merged[-1][0] == q_id:
+        if merged and merged[-1][0] == q_id:
             prev_id, prev_content = merged[-1]
             merged[-1] = (prev_id, prev_content + "\n\n" + content)
         else:
@@ -256,6 +321,51 @@ def extract_questions_section(block: str) -> str:
     return "\n\n".join(parts)
 
 
+
+def _split_kyotsu_shisaku(body: str) -> list[tuple[str, str]]:
+    """### 第A問 / ### 第B問 形式で分割する（共通テスト試作問題用フォールバック）。
+
+    split_questions() が空を返した場合のフォールバック。
+    """
+    pattern = re.compile(r"^### 第([A-Z])問\s*$", re.MULTILINE)
+    matches = list(pattern.finditer(body))
+    if len(matches) < 1:
+        return []
+
+    blocks = []
+    for i, m in enumerate(matches):
+        q_id = m.group(1)  # "A", "B"
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+        block_content = body[start:end].strip()
+        # 後続の ## セクション（## Data 等）は除外
+        h2_match = re.search(r"^## \S", block_content, re.MULTILINE)
+        if h2_match:
+            block_content = block_content[:h2_match.start()].strip()
+        blocks.append((q_id, block_content))
+
+    return blocks
+
+
+def detect_copyright_omitted(block: str) -> bool:
+    """ブロック内に著作権による本文省略を検出する。"""
+    # Geminiマーカー
+    if "<!-- COPYRIGHT_OMITTED" in block:
+        return True
+    # フォールバック: 日本語の著作権省略パターン
+    patterns = [
+        r"著作権.*?(?:省略|非掲載|割愛|掲載.{0,4}できません)",
+        r"本文.*?省略",
+        r"出典.*?都合.*?省略",
+        r"著作物.*?のため.*?(?:省略|非掲載)",
+        r"著作権.*?(?:理由|関係).*?(?:省略|非掲載|割愛)",
+    ]
+    for pat in patterns:
+        if re.search(pat, block):
+            return True
+    return False
+
+
 def detect_ab_split(text: str) -> list[tuple[str, str]]:
     """テキスト内の (A)/(B) 分割を検出する。
 
@@ -309,7 +419,8 @@ def parse_md(content: str, filename: str) -> list[ParsedQuestion]:
     # 大問分割
     question_blocks = split_questions(body)
     if not question_blocks:
-        return []
+        # フォールバック: ### 第A問 / ### 第B問 形式（共通テスト試作問題）
+        question_blocks = _split_kyotsu_shisaku(body)
 
     results: list[ParsedQuestion] = []
     for q_id_raw, block in question_blocks:
@@ -317,11 +428,15 @@ def parse_md(content: str, filename: str) -> list[ParsedQuestion]:
         text = extract_text_section(block)
         questions = extract_questions_section(block)
 
-        if not text.strip():
+        # 著作権省略チェック（ブロック全体を検査）
+        is_copyright_omitted = detect_copyright_omitted(block)
+
+        # テキストが空でも著作権省略の場合はパッセージとして登録する
+        if not text.strip() and not is_copyright_omitted:
             continue
 
         # (A)/(B) 分割チェック
-        ab_parts = detect_ab_split(text)
+        ab_parts = detect_ab_split(text) if text.strip() else [("1", text)]
         for passage_idx_str, passage_text in ab_parts:
             passage_idx = int(passage_idx_str)
             pid = generate_passage_id(year, university, q_num, passage_idx)
@@ -335,6 +450,7 @@ def parse_md(content: str, filename: str) -> list[ParsedQuestion]:
                     text_section=passage_text,
                     questions_section=questions,
                     passage_id=pid,
+                    copyright_omitted=is_copyright_omitted,
                 )
             )
 

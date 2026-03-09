@@ -36,6 +36,7 @@ class PassageCreate(PassageBase):
     has_en_summary: bool = False
     has_visual_info: bool = False
     visual_info_type: str = ""
+    copyright_omitted: bool = False
     reviewed: bool = False
     notes: str = ""
 
@@ -58,6 +59,7 @@ class PassageUpdate(BaseModel):
     has_en_summary: Optional[bool] = None
     has_visual_info: Optional[bool] = None
     visual_info_type: Optional[str] = None
+    copyright_omitted: Optional[bool] = None
     reviewed: Optional[bool] = None
     notes: Optional[str] = None
 
@@ -120,3 +122,4 @@ class ParsedQuestion(BaseModel):
     text_section: str
     questions_section: str
     passage_id: str
+    copyright_omitted: bool = False

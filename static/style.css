@@ -588,3 +588,19 @@ tr.low-confidence:hover { background: color-mix(in srgb, var(--warning) 25%, var
     white-space: nowrap;
     cursor: help;
 }
+
+/* 著作権省略 */
+tr.copyright-omitted { background: color-mix(in srgb, var(--muted) 15%, var(--surface)); }
+tr.copyright-omitted:hover { background: color-mix(in srgb, var(--muted) 25%, var(--surface)); }
+.copyright-badge {
+    display: inline-block;
+    background: color-mix(in srgb, var(--muted) 30%, transparent);
+    color: var(--text-secondary);
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 0.65rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    cursor: help;
+}

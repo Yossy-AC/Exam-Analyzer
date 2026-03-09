@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS passages (
 
     embedding BLOB,
 
+    copyright_omitted BOOLEAN DEFAULT 0,
+
     UNIQUE(university, year, question_number, passage_index),
     FOREIGN KEY (university) REFERENCES universities(name)
 );
@@ -156,6 +158,8 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
         ("cefr_score", "REAL"),
         # Phase C: Embedding（将来）
         ("embedding", "BLOB"),
+        # 著作権省略フラグ
+        ("copyright_omitted", "BOOLEAN DEFAULT 0"),
     ]
     for col, typedef in migrations:
         if col not in existing:
@@ -239,6 +243,7 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
                     cefr_confidence TEXT DEFAULT '',
                     cefr_score REAL,
                     embedding BLOB,
+                    copyright_omitted BOOLEAN DEFAULT 0,
                     UNIQUE(university, year, question_number, passage_index),
                     FOREIGN KEY (university) REFERENCES universities(name)
                 );

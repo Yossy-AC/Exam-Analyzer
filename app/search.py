@@ -153,6 +153,7 @@ def find_similar(
         conditions = [
             "text_type = 'long_reading'",
             "text_body != ''",
+            "COALESCE(copyright_omitted, 0) = 0",
             "id != ?",
         ]
         params: list = [source_id]

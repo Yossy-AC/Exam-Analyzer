@@ -11,7 +11,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
 CLAUDE_MODEL_DEFAULT = "claude-sonnet-4-6"
 CLAUDE_MODEL_PREMIUM = "claude-opus-4-6"
-PREMIUM_UNIVERSITY_CLASSES = {"旧帝大", "難関大", "準難関大"}
+PREMIUM_UNIVERSITY_CLASSES = {"旧帝大", "難関大", "準難関大", "共通テスト"}
 CLAUDE_MAX_TOKENS = 600
 CLAUDE_TEMPERATURE = 0
 CONCURRENT_LIMIT = 5
@@ -46,7 +46,7 @@ TEXT_STYLE_LIST = [
 
 VISUAL_INFO_TYPE_LIST = ["なし", "グラフ", "表", "イラスト", "写真", "地図"]
 
-UNIVERSITY_CLASS_LIST = ["旧帝大", "難関大", "準難関大", "その他国立大", "その他公立大", "未設定"]
+UNIVERSITY_CLASS_LIST = ["旧帝大", "難関大", "準難関大", "その他国立大", "その他公立大", "共通テスト", "未設定"]
 
 REGION_LIST = ["東北以北", "関東", "中部", "近畿", "中四国", "九州以南", "未設定"]
 
@@ -60,13 +60,14 @@ UNIVERSITY_SETTINGS: dict[str, tuple[str, str]] = {
     "九州大": ("旧帝大", "九州以南"),
     "北海道大": ("旧帝大", "東北以北"),
     # 以下、ユーザーが追記
+    "共通テスト": ("共通テスト", ""),
 }
 
 # Gemini PDF変換
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
+GEMINI_MODEL_NAME = "gemini-2.5-pro"
 GEMINI_MAX_RETRIES = 3
-GEMINI_RETRY_WAIT_SEC = 10
-GEMINI_REQUEST_INTERVAL_SEC = 7
+GEMINI_RETRY_WAIT_SEC = 15
+GEMINI_REQUEST_INTERVAL_SEC = 10
 GEMINI_PROMPT_FILE = BASE_DIR / "data" / "gemini_prompt.md"
 TEMP_PDF_DIR = str(BASE_DIR / "data" / "temp_pdf")

@@ -53,7 +53,7 @@ async def dashboard_partial(
             year_mode=year_mode, year_from=year_from, year_to=year_to,
             university_class=list(university_class), region=list(region),
         )
-        where = f"WHERE 1=1{extra}"
+        where = f"WHERE COALESCE(copyright_omitted, 0) = 0{extra}"
         params: list = filter_params
 
         total_passages = conn.execute(
@@ -296,7 +296,7 @@ async def reading_stats(
             year_mode=year_mode, year_from=year_from, year_to=year_to,
             university_class=list(university_class), region=list(region),
         )
-        where = f"WHERE text_type = 'long_reading'{extra}"
+        where = f"WHERE text_type = 'long_reading' AND COALESCE(copyright_omitted, 0) = 0{extra}"
         params: list = filter_params
 
         genre_rows = conn.execute(
@@ -404,7 +404,7 @@ async def composition_stats(
             year_mode=year_mode, year_from=year_from, year_to=year_to,
             university_class=list(university_class), region=list(region),
         )
-        where = f"WHERE 1=1{extra}"
+        where = f"WHERE COALESCE(copyright_omitted, 0) = 0{extra}"
         params: list = filter_params
 
         # 大学ベースの英作文出題有無
@@ -468,7 +468,7 @@ async def yearly_trend(university: str = ""):
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT * FROM passages WHERE university = ? ORDER BY year, question_number",
+            "SELECT * FROM passages WHERE university = ? AND COALESCE(copyright_omitted, 0) = 0 ORDER BY year, question_number",
             (university,),
         ).fetchall()
     finally:
@@ -549,7 +549,7 @@ async def compare_universities(
             SUM(has_jp_summary) as jp_summary,
             SUM(has_en_summary) as en_summary
         FROM passages
-        WHERE university IN ({placeholders}) AND text_type = 'long_reading'{extra}
+        WHERE university IN ({placeholders}) AND text_type = 'long_reading' AND COALESCE(copyright_omitted, 0) = 0{extra}
         GROUP BY university"""
         params: list = [*unis, *filter_params]
         rows = conn.execute(query, params).fetchall()
@@ -603,7 +603,7 @@ async def practice_list(
             year_mode=year_mode, year_from=year_from, year_to=year_to,
             university_class=list(university_class), region=list(region),
         )
-        conditions = ["1=1"]
+        conditions = ["COALESCE(copyright_omitted, 0) = 0"]
         params: list = list(filter_params)
 
         if text_type:
@@ -631,7 +631,7 @@ async def practice_list(
             p.has_jp_summary, p.has_en_summary
         FROM passages p LEFT JOIN universities u ON p.university = u.name {where}
         ORDER BY p.year DESC,
-            CASE u.university_class WHEN '旧帝大' THEN 1 WHEN '難関大' THEN 2 WHEN '準難関大' THEN 3 WHEN 'その他国立大' THEN 4 WHEN 'その他公立大' THEN 5 ELSE 6 END,
+            CASE u.university_class WHEN '共通テスト' THEN 0 WHEN '旧帝大' THEN 1 WHEN '難関大' THEN 2 WHEN '準難関大' THEN 3 WHEN 'その他国立大' THEN 4 WHEN 'その他公立大' THEN 5 ELSE 6 END,
             CASE u.region WHEN '東北以北' THEN 1 WHEN '関東' THEN 2 WHEN '中部' THEN 3 WHEN '近畿' THEN 4 WHEN '中四国' THEN 5 WHEN '九州以南' THEN 6 ELSE 7 END,
             p.university"""
         rows = conn.execute(query, params).fetchall()
@@ -661,7 +661,7 @@ async def heatmap(
             year_mode=year_mode, year_from=year_from, year_to=year_to,
             university_class=list(university_class), region=list(region),
         )
-        where = f"WHERE 1=1{extra}"
+        where = f"WHERE COALESCE(copyright_omitted, 0) = 0{extra}"
         params: list = filter_params
 
         rows = conn.execute(
@@ -709,7 +709,7 @@ async def question_format(
             year_mode=year_mode, year_from=year_from, year_to=year_to,
             university_class=list(university_class), region=list(region),
         )
-        where = f"WHERE 1=1{extra}"
+        where = f"WHERE COALESCE(copyright_omitted, 0) = 0{extra}"
         params: list = filter_params
 
         rows = conn.execute(

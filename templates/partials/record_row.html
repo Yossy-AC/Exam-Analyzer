@@ -1,6 +1,6 @@
-<tr id="row-{{ p.id }}" data-passage-id="{{ p.id }}" {% if p.low_confidence %}class="low-confidence"{% endif %}>
+<tr id="row-{{ p.id }}" data-passage-id="{{ p.id }}" {% if p.copyright_omitted %}class="copyright-omitted"{% elif p.low_confidence %}class="low-confidence"{% endif %}>
     {% if not readonly %}<td class="center"><input type="checkbox" class="row-select" value="{{ p.id }}"></td>{% endif %}
-    <td class="id-cell">{{ p.id }}{% if p.low_confidence %} <span class="confidence-warn" title="要確認: {{ p.low_confidence_fields }}">&#9888;</span>{% endif %}</td>
+    <td class="id-cell">{{ p.id }}{% if p.copyright_omitted %} <span class="copyright-badge" title="著作権により本文省略">©省略</span>{% elif p.low_confidence %} <span class="confidence-warn" title="要確認: {{ p.low_confidence_fields }}">&#9888;</span>{% endif %}</td>
     <td>{{ p.university }}</td>
     <td>{{ p.year }}</td>
     <td>{{ p.question_number }}-{{ p.passage_index }}</td>

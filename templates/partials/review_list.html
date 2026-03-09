@@ -44,7 +44,7 @@
 <!-- セクション2: データ問題 -->
 <div style="margin-top:20px;">
     <h5 style="margin:0 0 8px;">データ問題（{{ problem_passages|length }}件）</h5>
-    <p class="text-muted-sm" style="margin-bottom:8px;">ジャンル「その他」またはテーマ「不明」「内容不明」</p>
+    <p class="text-muted-sm" style="margin-bottom:8px;">ジャンル「その他」、テーマ「不明」「内容不明」、著作権省略</p>
     {% if problem_passages %}
     <div style="overflow-x:auto;">
         <table class="table table-sm" style="font-size:13px; width:100%;">
@@ -55,11 +55,12 @@
                     <th>問番号</th>
                     <th>ジャンル</th>
                     <th>テーマ</th>
+                    <th>状態</th>
                 </tr>
             </thead>
             <tbody>
                 {% for p in problem_passages %}
-                <tr>
+                <tr{% if p.copyright_omitted %} class="copyright-omitted"{% endif %}>
                     <td>{{ p.university }}</td>
                     <td>{{ p.year }}</td>
                     <td>{{ p.question_number }}-{{ p.passage_index }}</td>
@@ -75,6 +76,11 @@
                         <span class="text-danger">{{ p.theme }}</span>
                         {% else %}
                         {{ p.theme }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if p.copyright_omitted %}
+                        <span class="copyright-badge">©省略</span>
                         {% endif %}
                     </td>
                 </tr>

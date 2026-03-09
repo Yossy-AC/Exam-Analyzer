@@ -10,7 +10,7 @@
 - **分類API**: 大学クラスに応じてモデルを自動選択（統合プロンプトで1回呼び出し）
   - 旧帝大・難関大・準難関大 → Claude Opus (`claude-opus-4-6`)
   - その他 → Claude Sonnet (`claude-sonnet-4-6`)
-- **PDF変換**: Gemini API (`gemini-2.5-flash`) でPDF→Markdown変換
+- **PDF変換**: Gemini API (`gemini-2.5-pro`) でPDF→Markdown変換
 - **CEFR推定**: Claude APIで長文のCEFRレベル（A2〜C2）を推定
 - **Embedding**: Voyage AI (`voyage-4`, 1024次元) でテキスト類似度検索
 - **語彙分析**: NLTK + 6語彙リスト（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
@@ -89,6 +89,7 @@ fly deploy
 - 大阪大（外国語）: `university: 大阪大（外国語）` → 大学名と学部に分離、IDに学部を含める
 - `## Text`が空（`[ ]`等）の場合、`## Data` → `## Instructions`の順にフォールバック
 - 設問分析には全`## Instructions` + `## Data` + `## Questions`を結合して送信（要約指示・英作文指示も検出可能に）
+- チャンク分割対応: 同一Question IDの連続ブロックを自動マージ、アルファベット単体(`B`)→直前の`NA`から`NB`に補正、裸数字(`3`)→直前の`3B`にマージ
 
 ## text_type 分類（5種別）
 - `long_reading`: 長文読解（200語以上 + 内容理解問題）
@@ -177,6 +178,23 @@ fly deploy
 - フィルタ状態判定: 全ON・全OFFは「制限なし」、一部チェック時のみ `is-filtered` クラス付与（黄色背景）
 - 類似検索タブ: ソース選択用（大学ドロップダウン連動）と検索結果絞り込み用の2つの「大学属性」パネル
 
+## 著作権省略検出
+- `parser.py:detect_copyright_omitted()`: Geminiマーカー(`<!-- COPYRIGHT_OMITTED`)+ 日本語正規表現フォールバック
+- 著作権省略パッセージは `copyright_omitted=1` でDB保存、Claude分類・語彙分析・CEFR推定・embeddingをスキップ
+- ダッシュボード集計・類似検索から自動除外（`COALESCE(copyright_omitted, 0) = 0`）
+- 管理画面のデータ一覧・レビューリストには表示（グレー背景 + `©省略`バッジ）
+- Geminiプロンプト（`data/gemini_prompt.md`）に`<!-- COPYRIGHT_OMITTED: [説明] -->`出力指示を追記済み
+
+## 共通テスト対応
+- `config.py`: `UNIVERSITY_CLASS_LIST`に`"共通テスト"`追加、`PREMIUM_UNIVERSITY_CLASSES`にも追加（Opus使用）
+- 問題番号: `# 第1問A` → `split_questions()`で`"1A"` → `normalize_question_number()`で`"I-A"`
+- ファイル名規約: `{year}第N回共通テスト_R_XXX_問題.pdf`（XXX = 本試験/追試験）、`{year}第N回共通テスト_R_試作問題.pdf`
+- 大学名正規化: `第N回共通テスト_R_本試験` → `共通テスト（R本試験）`、`_R_試作問題` → `共通テスト（R試作）`
+- 試行調査対応: `第N回試行調査_R` → `共通テスト（R試行調査N）`（共通テスト系として統合）
+- 試作問題: `### 第A問` / `### 第B問` で分割するフォールバック（`_split_kyotsu_shisaku()`）
+- upload.py: `共通テスト` を含む大学名に `university_class='共通テスト'` を自動設定
+- 大学並び順: 共通テスト(0) > 旧帝大(1) > 難関大(2) > ...
+
 ## コーディング規約
 - テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`
 - 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
@@ -194,9 +212,13 @@ fly deploy
 - エンドポイント: `POST /api/upload-all`（ファイル拡張子で自動判別）
 - PDF処理パイプライン: Gemini変換 → MD解析 → Claude分類 → DB保存
 - `app/gemini_convert.py`: pdf-converterから移植した3関数（`is_scanned_pdf`, `parse_filename`, `convert_pdf_to_markdown`）
-- Gemini APIレート制限: Semaphore(1) + 7秒間隔
+- Gemini APIレート制限: Semaphore(1) + 10秒間隔
+- RECITATION（著作権）フィルタ対策: ページ分割フォールバック（5ページずつチャンク送信）
+- 安全フィルタ: 全カテゴリ`BLOCK_NONE`に設定
 - 変換後MDは `data/input_md/` に保存、一時PDFは `data/temp_pdf/`（成功時削除）
 - ジョブ進捗: `source_type`（md/pdf）と`current_step`（gemini_converting/parsing/classifying）で管理
 - エラーメッセージにステップラベル付与: `[Gemini変換]`, `[MD解析]`, `[Claude分類]`
-- プロンプト: `data/gemini_prompt.md`（gitignore対象、pdf-converterからコピー）
-- Caddyfile: `/staff/exam*` のbodyサイズ上限を55MBに設定
+- プロンプト: `data/gemini_prompt.md`（基本ルール）+ `data/gemini_prompt_kyotsu.md`（共通テスト追加ルール、条件付き連結）
+- Caddyfile: グローバル `max_size 200MB`、`/staff/exam*` も `max_size 200MB`
+- アップロードUI: XHR手動送信 + プログレスバー（HTMX非使用）
+- Shift-JIS→UTF-8ファイル名変換: latin-1→cp932デコードフォールバック
