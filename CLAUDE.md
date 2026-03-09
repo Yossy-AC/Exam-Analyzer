@@ -10,6 +10,7 @@
 - **分類API**: 大学クラスに応じてモデルを自動選択（統合プロンプトで1回呼び出し）
   - 旧帝大・難関大・準難関大 → Claude Opus (`claude-opus-4-6`)
   - その他 → Claude Sonnet (`claude-sonnet-4-6`)
+- **PDF変換**: Gemini API (`gemini-2.5-flash`) でPDF→Markdown変換
 - **CEFR推定**: Claude APIで長文のCEFRレベル（A2〜C2）を推定
 - **Embedding**: Voyage AI (`voyage-4`, 1024次元) でテキスト類似度検索
 - **語彙分析**: NLTK + 6語彙リスト（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
@@ -25,6 +26,7 @@ exam-analyzer/
 │   ├── db.py               # SQLite接続、スキーマ、シードデータ
 │   ├── parser.py           # MDファイルパーサー
 │   ├── classifier.py       # Claude API呼び出し（統合プロンプト、モデル自動選択）
+│   ├── gemini_convert.py   # Gemini API PDF→Markdown変換
 │   ├── prompts.py          # プロンプト定義（統合 + CEFR推定 + 旧互換）
 │   ├── models.py           # Pydanticモデル（ClassificationResult等）
 │   ├── vocab_analyzer.py   # 語彙分析（5リスト照合・平均文長・CEFR-J分布）
@@ -32,7 +34,7 @@ exam-analyzer/
 │   ├── search.py           # 類似長文検索（コサイン類似度 / 特徴量フォールバック）
 │   ├── wordlists/          # 語彙リストデータ（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
 │   └── routers/            # エンドポイント群
-│       ├── upload.py       # アップロード・解析・レビューリスト
+│       ├── upload.py       # アップロード（MD/PDF統合）・解析・レビューリスト
 │       ├── passages.py     # CRUD・インライン編集・手動追加・カラムフィルター
 │       ├── dashboard.py    # 集計・グラフデータ（7エンドポイント）
 │       ├── export.py       # CSV/JSON/DBエクスポート
@@ -45,7 +47,7 @@ exam-analyzer/
 │   ├── login.html
 │   └── partials/           # HTMXフラグメント
 ├── static/style.css
-├── data/                   # DB・アップロードファイル保存先
+├── data/                   # DB・アップロードファイル・一時PDF保存先
 ├── tests/                  # pytest
 ├── Dockerfile
 └── fly.toml
@@ -73,6 +75,7 @@ fly deploy
 使用する変数:
 - `ANTHROPIC_API_KEY` — 必須: Claude API キー
 - `VOYAGE_API_KEY` — 必須: Voyage AI API キー（embedding用）
+- `GEMINI_API_KEY` — 必須: Gemini API キー（PDF変換用）
 - `ADMIN_PASSWORD_HASH` — 任意: bcryptハッシュ（空なら認証なし）
 - `SECRET_KEY` — 任意: セッション署名キー
 - `DB_PATH` — DB保存先（デフォルト: `./data/exam.db`）
@@ -184,4 +187,16 @@ fly deploy
 - ユーティリティクラス追加: `.text-muted-sm`, `.text-danger`, `.text-warning`, `.bg-warning-subtle`, `.bg-danger-subtle`, `.similarity-high/mid/low`, `.metric-good/mid/bad/info`, `.modal-overlay`, `.modal-card`
 - 全テンプレートのハードコード色(`#f8f9fa`等)をCSS変数・ユーティリティクラスに置換
 - Chart.js: `cssVar()`ヘルパーでダークモード対応（`labelColor()`, `borderColor()`）
-- upload.py: アップロードサイズ制限10MB追加
+- upload.py: アップロードサイズ制限（MD: 10MB, PDF: 50MB）
+
+## PDF一括アップロード機能
+- 管理画面のアップロードタブでMD/PDFを統合ドロップゾーンで受付（フォルダD&D対応）
+- エンドポイント: `POST /api/upload-all`（ファイル拡張子で自動判別）
+- PDF処理パイプライン: Gemini変換 → MD解析 → Claude分類 → DB保存
+- `app/gemini_convert.py`: pdf-converterから移植した3関数（`is_scanned_pdf`, `parse_filename`, `convert_pdf_to_markdown`）
+- Gemini APIレート制限: Semaphore(1) + 7秒間隔
+- 変換後MDは `data/input_md/` に保存、一時PDFは `data/temp_pdf/`（成功時削除）
+- ジョブ進捗: `source_type`（md/pdf）と`current_step`（gemini_converting/parsing/classifying）で管理
+- エラーメッセージにステップラベル付与: `[Gemini変換]`, `[MD解析]`, `[Claude分類]`
+- プロンプト: `data/gemini_prompt.md`（gitignore対象、pdf-converterからコピー）
+- Caddyfile: `/staff/exam*` のbodyサイズ上限を55MBに設定

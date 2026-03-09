@@ -149,7 +149,7 @@ body {
 .tab-panel.active { display: block; }
 
 /* Upload */
-#dropzone {
+.dropzone {
     border: 2px dashed var(--border);
     border-radius: 8px;
     padding: 40px;
@@ -158,9 +158,9 @@ body {
     cursor: pointer;
     transition: border-color 0.2s;
 }
-#dropzone.dragover { border-color: var(--primary); background: rgba(13, 110, 253, 0.08); }
-[data-theme="dark"] #dropzone.dragover { background: rgba(41, 151, 255, 0.12); }
-#dropzone p { margin-bottom: 8px; color: var(--muted); }
+.dropzone.dragover { border-color: var(--primary); background: rgba(13, 110, 253, 0.08); }
+[data-theme="dark"] .dropzone.dragover { background: rgba(41, 151, 255, 0.12); }
+.dropzone p { margin-bottom: 8px; color: var(--muted); }
 
 /* Tables */
 .table {

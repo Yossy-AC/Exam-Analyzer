@@ -150,19 +150,21 @@
         <!-- タブ2: アップロード -->
         <div class="tab-panel" id="tab-upload">
             <form id="upload-form"
-                  hx-post="api/upload"
+                  hx-post="api/upload-all"
                   hx-target="#upload-results"
                   hx-encoding="multipart/form-data">
-                <div id="dropzone"
+                <div id="dropzone" class="dropzone"
                      ondragover="event.preventDefault(); this.classList.add('dragover')"
                      ondragleave="this.classList.remove('dragover')"
-                     ondrop="handleDrop(event)">
-                    <p>MDファイルをここにドラッグ&ドロップ</p>
+                     ondrop="handleDropAll(event)">
+                    <p>MD / PDF ファイルをここにドラッグ&ドロップ</p>
+                    <p style="font-size:12px; color:var(--muted);">フォルダごとの投入も可能</p>
                     <p>または</p>
-                    <input type="file" name="files" multiple accept=".md" id="file-input">
+                    <input type="file" name="files" multiple accept=".md,.pdf" id="file-input">
                 </div>
                 <button type="submit" class="btn btn-primary">解析開始</button>
             </form>
+
             <div id="upload-results"></div>
             <div id="job-status"
                  hx-get="api/jobs"
@@ -218,11 +220,42 @@ if (location.hash) {
     }
 }
 
-// ドラッグ&ドロップ
-function handleDrop(e) {
+// ドラッグ&ドロップ（フォルダ対応）
+async function handleDropAll(e) {
     e.preventDefault();
-    e.target.classList.remove('dragover');
-    document.getElementById('file-input').files = e.dataTransfer.files;
+    e.currentTarget.classList.remove('dragover');
+    const items = e.dataTransfer.items;
+    const files = [];
+    const promises = [];
+    for (const item of items) {
+        const entry = item.webkitGetAsEntry && item.webkitGetAsEntry();
+        if (entry) {
+            promises.push(collectFiles(entry, files));
+        }
+    }
+    await Promise.all(promises);
+    // .md と .pdf のみフィルタ
+    const filtered = files.filter(f => f.name.endsWith('.md') || f.name.toLowerCase().endsWith('.pdf'));
+    if (filtered.length === 0) return;
+    const dt = new DataTransfer();
+    filtered.forEach(f => dt.items.add(f));
+    document.getElementById('file-input').files = dt.files;
+}
+
+function collectFiles(entry, files) {
+    return new Promise(resolve => {
+        if (entry.isFile) {
+            entry.file(f => { files.push(f); resolve(); });
+        } else if (entry.isDirectory) {
+            const reader = entry.createReader();
+            reader.readEntries(async entries => {
+                await Promise.all(entries.map(e => collectFiles(e, files)));
+                resolve();
+            });
+        } else {
+            resolve();
+        }
+    });
 }
 
 // ---------- HTML partial ローダー ----------

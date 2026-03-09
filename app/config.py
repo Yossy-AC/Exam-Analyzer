@@ -61,3 +61,12 @@ UNIVERSITY_SETTINGS: dict[str, tuple[str, str]] = {
     "北海道大": ("旧帝大", "東北以北"),
     # 以下、ユーザーが追記
 }
+
+# Gemini PDF変換
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
+GEMINI_MAX_RETRIES = 3
+GEMINI_RETRY_WAIT_SEC = 10
+GEMINI_REQUEST_INTERVAL_SEC = 7
+GEMINI_PROMPT_FILE = BASE_DIR / "data" / "gemini_prompt.md"
+TEMP_PDF_DIR = str(BASE_DIR / "data" / "temp_pdf")

@@ -4,7 +4,8 @@
 
 ## 機能
 
-- **自動分類**: OCR済みMDファイルをアップロードすると、Claude APIで自動的にジャンル・テキスト種別・設問形式を分類
+- **自動分類**: MD/PDFファイルをアップロードすると、自動的にジャンル・テキスト種別・設問形式を分類
+- **PDF一括変換**: PDFファイルをGemini APIでMarkdownに自動変換し、そのまま分類・DB保存まで一括処理
 - **モデル自動選択**: 大学クラスに応じてOpus（旧帝大・難関大・準難関大）とSonnet（その他）を使い分け
 - **信頼度フラグ**: LLMが判定に自信のないフィールドを黄色バッジで表示、レビューを促進
 - **語彙分析**: 小中学語彙 / CEFR-J / NGSL / NAWL / ターゲット1900 / LEAPの6語彙リストで難易度を定量化
@@ -34,7 +35,7 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# .env を編集して ANTHROPIC_API_KEY, VOYAGE_API_KEY を設定
+# .env を編集して ANTHROPIC_API_KEY, VOYAGE_API_KEY, GEMINI_API_KEY を設定
 ```
 
 ### 3. 起動
@@ -47,8 +48,8 @@ uvicorn app.main:app --reload
 
 ### 4. 使い方
 
-1. 「アップロード」タブでMDファイルをドラッグ&ドロップ
-2. 自動解析が完了するとデータがDBに保存される
+1. 「アップロード」タブでMD/PDFファイルをドラッグ&ドロップ（フォルダごとの投入も可能）
+2. PDFはGemini APIでMarkdownに自動変換後、Claude APIで分類してDBに保存
 3. 各タブでグラフ・統計を確認
 4. 「一覧」タブで分類結果を確認・編集
 5. 必要に応じてCSV/JSON出力
@@ -142,6 +143,7 @@ python -m pytest tests/ -v
 | フロントエンド | HTMX + Jinja2 + Chart.js |
 | DB | SQLite |
 | 分類API | Claude Opus / Sonnet（大学クラス別自動選択、統合プロンプト1回呼び出し） |
+| PDF変換 | Gemini API gemini-2.5-flash（PDF→Markdown自動変換） |
 | CEFR推定 | Claude API（語彙指標をアンカーに使用） |
 | Embedding | Voyage AI voyage-4（1024次元、コサイン類似度検索） |
 | 語彙分析 | NLTK + 小中学語彙 / CEFR-J / NGSL / NAWL / ターゲット1900 / LEAP |

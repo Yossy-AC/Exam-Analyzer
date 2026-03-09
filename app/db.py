@@ -173,6 +173,10 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
     jobs_existing = {row[1] for row in conn.execute("PRAGMA table_info(analysis_jobs)").fetchall()}
     if "reviewed" not in jobs_existing:
         conn.execute("ALTER TABLE analysis_jobs ADD COLUMN reviewed BOOLEAN DEFAULT 0")
+    if "source_type" not in jobs_existing:
+        conn.execute("ALTER TABLE analysis_jobs ADD COLUMN source_type TEXT DEFAULT 'md'")
+    if "current_step" not in jobs_existing:
+        conn.execute("ALTER TABLE analysis_jobs ADD COLUMN current_step TEXT DEFAULT ''")
 
     # CEFRインデックス（cefr_levelカラム追加後に作成）
     if "cefr_level" in existing:
