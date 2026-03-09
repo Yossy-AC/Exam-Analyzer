@@ -90,6 +90,7 @@ fly deploy
 - `## Text`が空（`[ ]`等）の場合、`## Data` → `## Instructions`の順にフォールバック
 - 設問分析には全`## Instructions` + `## Data` + `## Questions`を結合して送信（要約指示・英作文指示も検出可能に）
 - チャンク分割対応: 同一Question IDの連続ブロックを自動マージ、アルファベット単体(`B`)→直前の`NA`から`NB`に補正、裸数字(`3`)→直前の`3B`にマージ
+- ファイル名パース: `_問題` サフィックスなし（例: `2024一橋大学.pdf`）にもフォールバック対応
 
 ## text_type 分類（5種別）
 - `long_reading`: 長文読解（200語以上 + 内容理解問題）
@@ -136,6 +137,7 @@ fly deploy
   - CEFR-Jレベル別分布 + B2超過率、NGSL未カバー率、NAWL率、ターゲット1900/LEAPカバー率、平均文長
   - 単語帳プロファイル: 小中学語彙（`junior_high.txt`）をベースに加え、「小中学語彙+単語帳N番まで」の統合カバー率
 - `classifier.py` の `estimate_cefr()`: Claude APIでCEFRレベル（A2〜C2）+ 信頼度を推定
+  - アップロード時に自動実行（`upload.py:_save_passage()`内、long_readingのみ）
   - 入力: text_body先頭3000字 + 語彙指標
   - cefr_score: A2=1, B1=2, B2=3, C1=3.5, C2=4（数値化）
 - `embedding.py`: Voyage AI voyage-4モデル（1024次元）でtext_bodyをembedding化
@@ -222,3 +224,6 @@ fly deploy
 - Caddyfile: グローバル `max_size 200MB`、`/staff/exam*` も `max_size 200MB`
 - アップロードUI: XHR手動送信 + プログレスバー（HTMX非使用）
 - Shift-JIS→UTF-8ファイル名変換: latin-1→cp932デコードフォールバック
+- ジョブ一覧: LIMIT 300（大量アップロード対応）
+- アップロード時にCEFR推定も自動実行（long_readingのみ、`backfill_cefr.py` 不要に）
+- ファイル名パース: `_問題` サフィックスなしにもフォールバック対応（`parse_filename()`, `extract_university_from_filename()`）

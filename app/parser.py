@@ -21,6 +21,11 @@ def extract_university_from_filename(filename: str) -> str:
         '2025第５回共通テスト_R_試作問題.md' -> '共通テスト（R試作）'
     """
     match = re.match(r"\d{4}(.+?)_問題", filename)
+    if not match:
+        # _問題 なし（例: 2024一橋大学.md）
+        match = re.match(r"\d{4}(.+?)\.md$", filename)
+    if not match:
+        match = re.match(r"\d{4}(.+)$", filename)
     raw = match.group(1) if match else filename.replace(".md", "")
     return _normalize_kyotsu_test(raw)
 

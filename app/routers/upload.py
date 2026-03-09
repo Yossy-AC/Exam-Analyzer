@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.auth import is_student
-from app.classifier import classify_passage
+from app.classifier import classify_passage, estimate_cefr
 from app.config import (
     GEMINI_PROMPT_FILE,
     GEMINI_REQUEST_INTERVAL_SEC,
@@ -42,6 +42,21 @@ async def _save_passage(data: dict) -> None:
         pass  # 著作権省略パッセージは語彙分析・embedding生成をスキップ
     elif data.get("text_type") == "long_reading" and text_body:
         vocab = analyze_vocab(text_body)
+        # CEFR推定（エラーは無視）
+        try:
+            cefr_result = await estimate_cefr(
+                passage_id=data["id"],
+                text_body=text_body,
+                university=data["university"],
+                year=data["year"],
+                text_style=data.get("text_style", ""),
+                vocab=vocab,
+            )
+            data["cefr_level"] = cefr_result.get("cefr_level", "")
+            data["cefr_score"] = cefr_result.get("cefr_score")
+            data["cefr_confidence"] = cefr_result.get("cefr_confidence", "")
+        except Exception as e:
+            logger.warning("CEFR推定失敗 %s: %s", data.get("id"), e)
         # embedding生成（エラーは無視してNULLのまま保存）
         try:
             vec = await embed_text(text_body)
@@ -78,9 +93,10 @@ async def _save_passage(data: dict) -> None:
              cefr_j_beyond_rate, cefr_j_profile,
              ngsl_uncovered_rate, nawl_rate,
              target1900_coverage, target1900_profile,
-             leap_coverage, leap_profile, embedding, copyright_omitted)
+             leap_coverage, leap_profile, embedding, copyright_omitted,
+             cefr_level, cefr_score, cefr_confidence)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["id"], data["university"], data["year"], data["faculty"],
                 data["question_number"], data["passage_index"],
@@ -116,6 +132,9 @@ async def _save_passage(data: dict) -> None:
                 json.dumps(vocab.get("leap_profile", {})),
                 embedding_blob,
                 data.get("copyright_omitted", False),
+                data.get("cefr_level", ""),
+                data.get("cefr_score"),
+                data.get("cefr_confidence", ""),
             ),
         )
         conn.commit()
@@ -352,7 +371,7 @@ async def get_jobs(request: Request):
     conn = get_connection()
     try:
         jobs = conn.execute(
-            "SELECT * FROM analysis_jobs ORDER BY created_at DESC LIMIT 50"
+            "SELECT * FROM analysis_jobs ORDER BY created_at DESC LIMIT 300"
         ).fetchall()
     finally:
         conn.close()

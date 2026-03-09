@@ -44,8 +44,14 @@ def parse_filename(stem: str) -> tuple[str, str]:
     """ファイル名からyearとuniversityを抽出する。
 
     例: '2025大阪大（外国語以外）_問題' → ('2025', '大阪大（外国語以外）')
+         '2024一橋大学' → ('2024', '一橋大学')
     """
+    # _問題 サフィックスありの場合
     m = re.match(r"^(\d{4})(.+?)_問題", stem)
+    if m:
+        return m.group(1), m.group(2)
+    # _問題 なし（年度+大学名のみ）
+    m = re.match(r"^(\d{4})(.+)$", stem)
     if m:
         return m.group(1), m.group(2)
     return "", stem
