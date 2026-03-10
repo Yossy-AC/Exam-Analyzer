@@ -106,7 +106,7 @@
 
         <!-- タブ2: 長文統計 -->
         <div class="tab-panel" id="tab-reading">
-            <div class="chart-grid chart-grid-3">
+            <div class="chart-grid">
                 <div class="chart-box">
                     <h4>ジャンル分布</h4>
                     <canvas id="reading-genre-chart" height="240"></canvas>
@@ -115,14 +115,14 @@
                     <h4>文体分布</h4>
                     <canvas id="reading-style-chart" height="240"></canvas>
                 </div>
+            </div>
+            <div class="chart-grid" style="margin-top:16px;">
                 <div class="chart-box">
                     <h4>長文中記述問題の種別</h4>
                     <canvas id="reading-format-chart" height="240"></canvas>
                 </div>
-            </div>
-            <div style="margin-top:16px">
                 <div class="chart-box">
-                    <h4>論理的説明文のジャンル詳細</h4>
+                    <h4>論理的説明文のジャンル詳細（上位）</h4>
                     <div id="reading-subgenres"></div>
                 </div>
             </div>
@@ -162,9 +162,11 @@
                             <div class="filter-section-label">大学分類</div>
                             <div class="filter-row">
                                 {% for cls in university_class_list %}
+                                {% if cls != '共通テスト' %}
                                 <label style="font-size:11px; display:flex; align-items:center; gap:2px; white-space:nowrap;">
                                     <input type="checkbox" name="practice-cls" value="{{ cls }}" onchange="updateFilterPanel('practice-filter-panel')"> {{ cls }}
                                 </label>
+                                {% endif %}
                                 {% endfor %}
                             </div>
                         </div>
@@ -226,9 +228,11 @@
                         <div class="filter-section-label">大学分類</div>
                         <div class="filter-row">
                             {% for cls in university_class_list %}
+                            {% if cls != '共通テスト' %}
                             <label style="font-size:11px; display:flex; align-items:center; gap:2px; white-space:nowrap;">
                                 <input type="checkbox" name="similar-src-cls" value="{{ cls }}" onchange="updateFilterPanel('similar-src-filter-panel'); onSimilarYearChange()"> {{ cls }}
                             </label>
+                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -327,9 +331,11 @@
                         <div class="filter-section-label">大学分類</div>
                         <div class="filter-row">
                             {% for cls in university_class_list %}
+                            {% if cls != '共通テスト' %}
                             <label style="font-size:11px; display:flex; align-items:center; gap:2px; white-space:nowrap;">
                                 <input type="checkbox" name="similar-cls" value="{{ cls }}" checked onchange="updateFilterPanel('similar-filter-panel')"> {{ cls }}
                             </label>
+                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -916,26 +922,30 @@ async function loadReadingStats() {
         }
     });
 
-    // 論理的説明文のジャンル詳細（エッセイ・評論、物語文を除外）
-    var EXCLUDED_STYLES = new Set(['エッセイ・評論', '物語文']);
+    // 論理的説明文のジャンル詳細（上位ジャンルのみ表示）
     var subgenreEl = document.getElementById('reading-subgenres');
     if (data.subgenres && Object.keys(data.subgenres).length > 0) {
-        // 論理的説明文に該当する文体のジャンルのみ抽出
-        var filteredGenres = {};
-        for (var genre in data.subgenres) {
-            var subs = data.subgenres[genre];
-            if (subs.length > 0) filteredGenres[genre] = subs;
-        }
-        if (Object.keys(filteredGenres).length > 0) {
+        // 各ジャンルの合計件数を計算し、降順でソート
+        var genreEntries = Object.entries(data.subgenres).map(function(e) {
+            var total = e[1].reduce(function(s, x) { return s + x.count; }, 0);
+            return { genre: e[0], subs: e[1], total: total };
+        }).filter(function(e) { return e.subs.length > 0; });
+        genreEntries.sort(function(a, b) { return b.total - a.total; });
+        // 上位4ジャンルのみ表示、各ジャンル最大5件
+        var TOP_GENRES = 4, MAX_SUBS = 5;
+        var topEntries = genreEntries.slice(0, TOP_GENRES);
+        if (topEntries.length > 0) {
             var html = '<div class="subgenre-flow">';
-            for (var g in filteredGenres) {
-                var subs = filteredGenres[g];
-                html += '<div class="subgenre-group"><h5>' + g + '</h5><ul>';
-                for (var i = 0; i < subs.length; i++) {
-                    html += '<li>' + subs[i].subgenre + ' <span class="badge">' + subs[i].count + '</span></li>';
+            topEntries.forEach(function(e) {
+                html += '<div class="subgenre-group"><h5>' + e.genre + ' <span class="badge">' + e.total + '</span></h5><ul>';
+                e.subs.slice(0, MAX_SUBS).forEach(function(s) {
+                    html += '<li>' + s.subgenre + ' <span class="badge">' + s.count + '</span></li>';
+                });
+                if (e.subs.length > MAX_SUBS) {
+                    html += '<li style="color:var(--muted); font-size:11px;">他 ' + (e.subs.length - MAX_SUBS) + ' 件…</li>';
                 }
                 html += '</ul></div>';
-            }
+            });
             html += '</div>';
             subgenreEl.innerHTML = html;
         } else {
@@ -1158,6 +1168,7 @@ function onSimilarYearChange() {
     var filterByRgn = srcRgn.length > 0 && srcRgn.length < allRgn.length;
     var unis = [...new Set(_similarPassages.filter(function(p) {
         if (String(p.year) !== String(year)) return false;
+        if (p.university_class === '共通テスト') return false;
         if (filterByCls && srcCls.indexOf(p.university_class || '') === -1) return false;
         if (filterByRgn && srcRgn.indexOf(p.region || '') === -1) return false;
         return true;

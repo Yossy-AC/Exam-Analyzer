@@ -604,7 +604,7 @@ async def practice_list(
             year_mode=year_mode, year_from=year_from, year_to=year_to,
             university_class=list(university_class), region=list(region),
         )
-        conditions = ["COALESCE(copyright_omitted, 0) = 0"]
+        conditions = ["COALESCE(copyright_omitted, 0) = 0", "COALESCE(u.university_class, '') != '共通テスト'"]
         params: list = list(filter_params)
 
         if text_type:
