@@ -232,4 +232,8 @@ fly deploy
 - アップロード時にCEFR推定も自動実行（long_readingのみ、`backfill_cefr.py` 不要に）
 - ファイル名パース: `_問題` サフィックスなしにもフォールバック対応（`parse_filename()`, `extract_university_from_filename()`）
 - MD処理時もcurrent_step表示（parsing → classifying）
-- 要確認リスト: 処理状況リストの上に表示、再投入成功時に旧警告を自動非表示
+- 要確認リスト: 処理状況の下に表示（ジョブ問題→データ問題）、再投入成功時に旧警告を自動非表示
+- ジョブステータス: passages_created=0 + エラーメッセージあり → `status='error'`（以前は`'completed'`）
+- 処理状況フィルタ: HTMXターゲット外に配置（5秒リフレッシュでリセットされない）
+- 要確認リスト: ソート・フィルタ・列幅変更対応（ジョブ問題・データ問題テーブル）
+- Gemini 503/429対策: 5回リトライ + エクスポネンシャルバックオフ（15s→30s→60s→120s→240s）

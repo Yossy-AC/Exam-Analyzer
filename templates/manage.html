@@ -168,23 +168,39 @@
 
             <div id="upload-results"></div>
 
+            <!-- 処理状況 -->
+            <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                    <h4 style="margin:0;">処理状況</h4>
+                    <span id="job-count-label" style="font-size:13px; color:var(--muted);"></span>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <input type="text" id="job-filter-input" placeholder="ファイル名で絞り込み..." style="font-size:13px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; width:250px;">
+                    <select id="job-status-filter" style="font-size:13px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; margin-left:8px;">
+                        <option value="">全状態</option>
+                        <option value="completed">完了</option>
+                        <option value="processing">処理中</option>
+                        <option value="pending">待機中</option>
+                        <option value="error">エラー</option>
+                    </select>
+                </div>
+                <div id="job-status"
+                     hx-get="api/jobs"
+                     hx-trigger="load, every 5s"
+                     hx-target="#job-status"></div>
+            </div>
+
             <!-- 要確認リスト -->
             <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
                     <h4 style="margin:0;">要確認リスト</h4>
-                    <button class="btn btn-sm" onclick="loadPartial(BASE + 'api/review-list', 'review-list')">更新</button>
+                    <button class="btn btn-sm" onclick="loadReviewList()">更新</button>
                     <button class="btn btn-sm" id="reclassify-btn" onclick="runReclassify()">その他○○ を再分類</button>
                 </div>
                 <div id="review-list">
                     <p style="color:var(--muted); font-size:13px;">「更新」ボタンを押して確認してください</p>
                 </div>
             </div>
-
-            <!-- 処理状況 -->
-            <div id="job-status" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;"
-                 hx-get="api/jobs"
-                 hx-trigger="load, every 5s"
-                 hx-target="#job-status"></div>
         </div>
 
         <!-- タブ3: 大学設定 -->
@@ -208,7 +224,7 @@ function switchTab(name) {
     location.hash = name;
 
     if (name === 'univ-settings') loadPartial(BASE + 'partials/university-settings', 'tab-univ-settings');
-    if (name === 'upload') loadPartial(BASE + 'api/review-list', 'review-list');
+    if (name === 'upload') loadReviewList();
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
@@ -568,46 +584,25 @@ function initJobTable() {
     var table = document.getElementById('job-table');
     if (!table) return;
 
+    // 件数ラベル更新
+    var countLabel = document.getElementById('job-count-label');
+    var totalRows = table.querySelectorAll('tbody tr').length;
+    if (countLabel) countLabel.textContent = '（' + totalRows + '件）';
+
     // 日付を短縮フォーマット（既にJST）
     table.querySelectorAll('tbody tr').forEach(function(row) {
         var td = row.cells[4];
         if (!td) return;
         var raw = td.textContent.trim();
         if (!raw) return;
-        // "2026-03-09 23:52:14" → "03/09 23:52"
         var m = raw.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
         if (m) td.textContent = m[2] + '/' + m[3] + ' ' + m[4] + ':' + m[5];
     });
 
-    // ソートイベント
-    table.querySelectorAll('th.sortable').forEach(function(th) {
-        th.onclick = function() {
-            var col = parseInt(th.dataset.col);
-            var asc = _jobSortState[col] === 'asc' ? 'desc' : 'asc';
-            _jobSortState = {};
-            _jobSortState[col] = asc;
-            table.querySelectorAll('th.sortable').forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
-            th.classList.add('sort-' + asc);
-            var tbody = table.querySelector('tbody');
-            var rows = Array.from(tbody.querySelectorAll('tr'));
-            rows.sort(function(a, b) {
-                var va = a.cells[col].textContent.trim();
-                var vb = b.cells[col].textContent.trim();
-                var na = parseFloat(va), nb = parseFloat(vb);
-                if (!isNaN(na) && !isNaN(nb)) return asc === 'asc' ? na - nb : nb - na;
-                return asc === 'asc' ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja');
-            });
-            rows.forEach(function(r) { tbody.appendChild(r); });
-            applyJobFilter();
-        };
-    });
+    // ソートイベント（ヘッダーにバインド）
+    initSortable(table, _jobSortState, function() { applyJobFilter(); });
 
-    // フィルタイベント
-    var filterInput = document.getElementById('job-filter-input');
-    var statusFilter = document.getElementById('job-status-filter');
-    if (filterInput) filterInput.oninput = applyJobFilter;
-    if (statusFilter) statusFilter.onchange = applyJobFilter;
-
+    // 現在のフィルタを適用
     applyJobFilter();
 }
 
@@ -628,11 +623,82 @@ function applyJobFilter() {
     });
 }
 
+// フィルタイベント（フィルタ入力はHTMXターゲット外なので一度だけバインド）
+document.getElementById('job-filter-input').oninput = applyJobFilter;
+document.getElementById('job-status-filter').onchange = applyJobFilter;
+
 // HTMX swap後にジョブテーブルを初期化
 document.body.addEventListener('htmx:afterSwap', function(e) {
     if (e.detail.target && e.detail.target.id === 'job-status') {
         initJobTable();
     }
 });
+
+// ---------- 汎用テーブルソート ----------
+function initSortable(table, sortState, afterSort) {
+    table.querySelectorAll('th.sortable').forEach(function(th) {
+        th.style.cursor = 'pointer';
+        th.onclick = function() {
+            var col = parseInt(th.dataset.col);
+            var asc = sortState[col] === 'asc' ? 'desc' : 'asc';
+            // reset
+            for (var k in sortState) delete sortState[k];
+            sortState[col] = asc;
+            table.querySelectorAll('th.sortable').forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+            th.classList.add('sort-' + asc);
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b) {
+                var va = (a.cells[col] || {textContent:''}).textContent.trim();
+                var vb = (b.cells[col] || {textContent:''}).textContent.trim();
+                var na = parseFloat(va), nb = parseFloat(vb);
+                if (!isNaN(na) && !isNaN(nb)) return asc === 'asc' ? na - nb : nb - na;
+                return asc === 'asc' ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja');
+            });
+            rows.forEach(function(r) { tbody.appendChild(r); });
+            if (afterSort) afterSort();
+        };
+    });
+}
+
+// ---------- 要確認リスト ----------
+var _reviewJobSortState = {};
+var _reviewDataSortState = {};
+
+function loadReviewList() {
+    loadPartial(BASE + 'api/review-list', 'review-list');
+}
+
+function initReviewTables() {
+    // ジョブ問題テーブル
+    var jobTable = document.getElementById('review-job-table');
+    if (jobTable) {
+        initSortable(jobTable, _reviewJobSortState);
+        initTableFilter('review-job-filter', jobTable, [0, 1]);
+    }
+    // データ問題テーブル
+    var dataTable = document.getElementById('review-data-table');
+    if (dataTable) {
+        initSortable(dataTable, _reviewDataSortState);
+        initTableFilter('review-data-filter', dataTable, [0, 1, 3, 4]);
+    }
+}
+
+function initTableFilter(inputId, table, searchCols) {
+    var input = document.getElementById(inputId);
+    if (!input || !table) return;
+    input.oninput = function() {
+        var keyword = input.value.toLowerCase();
+        table.querySelectorAll('tbody tr').forEach(function(row) {
+            if (!keyword) { row.style.display = ''; return; }
+            var match = false;
+            searchCols.forEach(function(col) {
+                var cell = row.cells[col];
+                if (cell && cell.textContent.toLowerCase().includes(keyword)) match = true;
+            });
+            row.style.display = match ? '' : 'none';
+        });
+    };
+}
 </script>
 {% endblock %}

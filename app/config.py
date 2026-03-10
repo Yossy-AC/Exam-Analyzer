@@ -66,7 +66,7 @@ UNIVERSITY_SETTINGS: dict[str, tuple[str, str]] = {
 # Gemini PDF変換
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL_NAME = "gemini-2.5-pro"
-GEMINI_MAX_RETRIES = 3
+GEMINI_MAX_RETRIES = 5
 GEMINI_RETRY_WAIT_SEC = 15
 GEMINI_REQUEST_INTERVAL_SEC = 10
 GEMINI_PROMPT_FILE = BASE_DIR / "data" / "gemini_prompt.md"

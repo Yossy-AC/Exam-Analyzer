@@ -4,15 +4,18 @@
 <div>
     <h5 style="margin:0 0 8px;">ジョブ問題（{{ problem_jobs|length }}件）</h5>
     {% if problem_jobs %}
+    <div style="margin-bottom:8px;">
+        <input type="text" id="review-job-filter" placeholder="絞り込み..." style="font-size:13px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; width:200px;">
+    </div>
     <div style="overflow-x:auto;">
-        <table class="table table-sm" style="font-size:13px; width:100%;">
+        <table class="table table-sm table-resizable" id="review-job-table" style="font-size:13px; width:100%;">
             <thead>
                 <tr>
-                    <th>ファイル名</th>
-                    <th>状態</th>
-                    <th>抽出数</th>
+                    <th class="sortable" data-col="0">ファイル名</th>
+                    <th class="sortable" data-col="1">状態</th>
+                    <th class="sortable" data-col="2">抽出数</th>
                     <th>エラー内容</th>
-                    <th>日時</th>
+                    <th class="sortable" data-col="4">日時</th>
                     <th></th>
                 </tr>
             </thead>
@@ -46,15 +49,18 @@
     <h5 style="margin:0 0 8px;">データ問題（{{ problem_passages|length }}件）</h5>
     <p class="text-muted-sm" style="margin-bottom:8px;">ジャンル「その他」、テーマ「不明」「内容不明」、著作権省略</p>
     {% if problem_passages %}
+    <div style="margin-bottom:8px;">
+        <input type="text" id="review-data-filter" placeholder="絞り込み..." style="font-size:13px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; width:200px;">
+    </div>
     <div style="overflow-x:auto;">
-        <table class="table table-sm" style="font-size:13px; width:100%;">
+        <table class="table table-sm table-resizable" id="review-data-table" style="font-size:13px; width:100%;">
             <thead>
                 <tr>
-                    <th>大学</th>
-                    <th>年度</th>
-                    <th>問番号</th>
-                    <th>ジャンル</th>
-                    <th>テーマ</th>
+                    <th class="sortable" data-col="0">大学</th>
+                    <th class="sortable" data-col="1">年度</th>
+                    <th class="sortable" data-col="2">問番号</th>
+                    <th class="sortable" data-col="3">ジャンル</th>
+                    <th class="sortable" data-col="4">テーマ</th>
                     <th>状態</th>
                 </tr>
             </thead>
@@ -104,4 +110,6 @@ async function dismissJob(jobId, btn) {
         alert(e.message);
     }
 }
+// review_list読み込み後にテーブル初期化
+if (typeof initReviewTables === 'function') initReviewTables();
 </script>

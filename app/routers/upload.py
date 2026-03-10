@@ -172,7 +172,7 @@ async def _process_file(job_id: int, filename: str, content: str) -> None:
     try:
         passages = parse_md(content, filename)
         if not passages:
-            _update_job(job_id, "completed", 0, f"[MD解析] パッセージが抽出できませんでした。見出し構造(## )を確認してください")
+            _update_job(job_id, "error", 0, f"[MD解析] パッセージが抽出できませんでした。見出し構造(## )を確認してください")
             return
 
         # 既にDB登録済みのIDをチェック
@@ -217,7 +217,8 @@ async def _process_file(job_id: int, filename: str, content: str) -> None:
                 errors.append(f"{pq.passage_id}")
 
         error_msg = f"[Claude分類] {len(errors)}件失敗: {', '.join(errors)}" if errors else None
-        _update_job(job_id, "completed", count, error_msg)
+        status = "error" if count == 0 and error_msg else "completed"
+        _update_job(job_id, status, count, error_msg)
 
     except Exception as e:
         logger.error("Processing failed for %s: %s", filename, e)
@@ -495,7 +496,7 @@ async def _process_pdf_file(job_id: int, filename: str, pdf_path: str) -> None:
             _update_job(job_id, "processing", current_step="parsing")
             passages = parse_md(md_text, md_filename)
             if not passages:
-                _update_job(job_id, "completed", 0, "[MD解析] Gemini変換後のMDからパッセージが抽出できませんでした")
+                _update_job(job_id, "error", 0, "[MD解析] Gemini変換後のMDからパッセージが抽出できませんでした")
                 return
 
             # 既存ID重複チェック
@@ -541,7 +542,8 @@ async def _process_pdf_file(job_id: int, filename: str, pdf_path: str) -> None:
                     errors.append(f"{pq.passage_id}")
 
             error_msg = f"[Claude分類] {len(errors)}件失敗: {', '.join(errors)}" if errors else None
-            _update_job(job_id, "completed", count, error_msg)
+            status = "error" if count == 0 and error_msg else "completed"
+            _update_job(job_id, status, count, error_msg)
 
         except Exception as e:
             step_label = {"gemini_converting": "Gemini変換", "parsing": "MD解析", "classifying": "Claude分類"}.get(current_step, current_step)

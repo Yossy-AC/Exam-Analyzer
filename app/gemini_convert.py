@@ -148,7 +148,14 @@ async def convert_pdf_to_markdown(pdf_path: str, prompt: str) -> tuple[str, int,
         except Exception as e:
             logger.warning("Gemini APIエラー（試行 %d/%d）: %s", attempt, GEMINI_MAX_RETRIES, e)
             if attempt < GEMINI_MAX_RETRIES:
-                await asyncio.sleep(GEMINI_RETRY_WAIT_SEC)
+                # 503/429はエクスポネンシャルバックオフ（15s, 30s, 60s, 120s）
+                err_str = str(e)
+                if "503" in err_str or "429" in err_str or "UNAVAILABLE" in err_str:
+                    wait = GEMINI_RETRY_WAIT_SEC * (2 ** (attempt - 1))
+                    logger.info("高負荷/レート制限 → %d秒待機", wait)
+                    await asyncio.sleep(wait)
+                else:
+                    await asyncio.sleep(GEMINI_RETRY_WAIT_SEC)
             else:
                 raise
 
@@ -185,7 +192,13 @@ async def convert_pdf_to_markdown(pdf_path: str, prompt: str) -> tuple[str, int,
                 logger.warning("チャンク %d/%d エラー（試行 %d/%d）: %s",
                                i + 1, len(chunks), attempt, GEMINI_MAX_RETRIES, e)
                 if attempt < GEMINI_MAX_RETRIES:
-                    await asyncio.sleep(GEMINI_RETRY_WAIT_SEC)
+                    err_str = str(e)
+                    if "503" in err_str or "429" in err_str or "UNAVAILABLE" in err_str:
+                        wait = GEMINI_RETRY_WAIT_SEC * (2 ** (attempt - 1))
+                        logger.info("高負荷/レート制限 → %d秒待機", wait)
+                        await asyncio.sleep(wait)
+                    else:
+                        await asyncio.sleep(GEMINI_RETRY_WAIT_SEC)
                 else:
                     raise
         # チャンク間のレート制限
