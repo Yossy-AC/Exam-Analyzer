@@ -560,5 +560,79 @@ document.addEventListener('click', function(e) {
         if (!panel.contains(e.target)) panel.removeAttribute('open');
     });
 });
+
+// ---------- ジョブテーブル: ソート・フィルタ・日付変換 ----------
+var _jobSortState = {};
+
+function initJobTable() {
+    var table = document.getElementById('job-table');
+    if (!table) return;
+
+    // 日付を短縮フォーマット（既にJST）
+    table.querySelectorAll('tbody tr').forEach(function(row) {
+        var td = row.cells[4];
+        if (!td) return;
+        var raw = td.textContent.trim();
+        if (!raw) return;
+        // "2026-03-09 23:52:14" → "03/09 23:52"
+        var m = raw.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+        if (m) td.textContent = m[2] + '/' + m[3] + ' ' + m[4] + ':' + m[5];
+    });
+
+    // ソートイベント
+    table.querySelectorAll('th.sortable').forEach(function(th) {
+        th.onclick = function() {
+            var col = parseInt(th.dataset.col);
+            var asc = _jobSortState[col] === 'asc' ? 'desc' : 'asc';
+            _jobSortState = {};
+            _jobSortState[col] = asc;
+            table.querySelectorAll('th.sortable').forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+            th.classList.add('sort-' + asc);
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b) {
+                var va = a.cells[col].textContent.trim();
+                var vb = b.cells[col].textContent.trim();
+                var na = parseFloat(va), nb = parseFloat(vb);
+                if (!isNaN(na) && !isNaN(nb)) return asc === 'asc' ? na - nb : nb - na;
+                return asc === 'asc' ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja');
+            });
+            rows.forEach(function(r) { tbody.appendChild(r); });
+            applyJobFilter();
+        };
+    });
+
+    // フィルタイベント
+    var filterInput = document.getElementById('job-filter-input');
+    var statusFilter = document.getElementById('job-status-filter');
+    if (filterInput) filterInput.oninput = applyJobFilter;
+    if (statusFilter) statusFilter.onchange = applyJobFilter;
+
+    applyJobFilter();
+}
+
+function applyJobFilter() {
+    var table = document.getElementById('job-table');
+    if (!table) return;
+    var filterInput = document.getElementById('job-filter-input');
+    var statusFilter = document.getElementById('job-status-filter');
+    var keyword = (filterInput ? filterInput.value : '').toLowerCase();
+    var statusVal = statusFilter ? statusFilter.value : '';
+
+    table.querySelectorAll('tbody tr').forEach(function(row) {
+        var filename = row.cells[0].textContent.toLowerCase();
+        var status = row.dataset.status || '';
+        var matchKeyword = !keyword || filename.includes(keyword);
+        var matchStatus = !statusVal || status === statusVal;
+        row.style.display = (matchKeyword && matchStatus) ? '' : 'none';
+    });
+}
+
+// HTMX swap後にジョブテーブルを初期化
+document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target && e.detail.target.id === 'job-status') {
+        initJobTable();
+    }
+});
 </script>
 {% endblock %}

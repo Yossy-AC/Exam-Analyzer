@@ -1,5 +1,15 @@
 {% if jobs %}
 <h4 style="margin:0 0 8px;">処理状況（{{ jobs|length }}件）</h4>
+<div style="margin-bottom:8px;">
+    <input type="text" id="job-filter-input" placeholder="ファイル名で絞り込み..." style="font-size:13px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; width:250px;">
+    <select id="job-status-filter" style="font-size:13px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; margin-left:8px;">
+        <option value="">全状態</option>
+        <option value="completed">完了</option>
+        <option value="processing">処理中</option>
+        <option value="pending">待機中</option>
+        <option value="error">エラー</option>
+    </select>
+</div>
 <table class="table table-sm table-resizable" id="job-table">
     <thead>
         <tr>
@@ -12,7 +22,7 @@
     </thead>
     <tbody>
         {% for job in jobs %}
-        <tr class="{% if job.status == 'completed' %}row-success{% elif job.status == 'error' %}row-error{% elif job.status == 'processing' %}row-processing{% endif %}">
+        <tr data-status="{{ job.status }}" class="{% if job.status == 'completed' %}row-success{% elif job.status == 'error' %}row-error{% elif job.status == 'processing' %}row-processing{% endif %}">
             <td>{{ job.filename }}</td>
             <td>
                 {% if job.status == 'pending' %}待機中
@@ -36,35 +46,6 @@
         {% endfor %}
     </tbody>
 </table>
-
-<script>
-(function() {
-    var table = document.getElementById('job-table');
-    if (!table) return;
-    var headers = table.querySelectorAll('th.sortable');
-    var sortState = {};
-    headers.forEach(function(th) {
-        th.addEventListener('click', function() {
-            var col = parseInt(th.dataset.col);
-            var asc = sortState[col] === 'asc' ? 'desc' : 'asc';
-            sortState = {};
-            sortState[col] = asc;
-            headers.forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
-            th.classList.add('sort-' + asc);
-            var tbody = table.querySelector('tbody');
-            var rows = Array.from(tbody.querySelectorAll('tr'));
-            rows.sort(function(a, b) {
-                var va = a.cells[col].textContent.trim();
-                var vb = b.cells[col].textContent.trim();
-                var na = parseFloat(va), nb = parseFloat(vb);
-                if (!isNaN(na) && !isNaN(nb)) return asc === 'asc' ? na - nb : nb - na;
-                return asc === 'asc' ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja');
-            });
-            rows.forEach(function(r) { tbody.appendChild(r); });
-        });
-    });
-})();
-</script>
 {% else %}
 <h4 style="margin:0 0 8px;">処理状況</h4>
 <p class="muted">解析ジョブはありません</p>
