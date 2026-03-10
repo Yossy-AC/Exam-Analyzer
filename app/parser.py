@@ -27,7 +27,8 @@ def extract_university_from_filename(filename: str) -> str:
     if not match:
         match = re.match(r"\d{4}(.+)$", filename)
     raw = match.group(1) if match else filename.replace(".md", "")
-    return _normalize_kyotsu_test(raw)
+    normalized = _normalize_kyotsu_test(raw)
+    return _normalize_university_name(normalized)
 
 
 def _normalize_kyotsu_test(raw: str) -> str:
@@ -56,6 +57,19 @@ def _normalize_kyotsu_test(raw: str) -> str:
     suffix = re.sub(r"問題$", "", suffix)  # Remove trailing 問題
     suffix = suffix.replace("_", "")  # "R_本試験" → "R本試験"
     return f"共通テスト（{suffix}）"
+
+
+def _normalize_university_name(name: str) -> str:
+    """大学名を略称に正規化する。
+
+    '一橋大学' → '一橋大'
+    '大阪大学（外国語）' → '大阪大（外国語）'
+    '共通テスト（R本試験）' → そのまま
+    """
+    if "共通テスト" in name:
+        return name
+    # 括弧の前の「大学」→「大」に変換
+    return re.sub(r"大学(?=[（(]|$)", "大", name)
 
 
 def normalize_year(raw_year) -> Optional[int]:

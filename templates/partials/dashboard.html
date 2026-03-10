@@ -112,7 +112,8 @@
     if (ctx2) {
         var gLabels = {{ genre_all.labels | tojson }};
         var gData = {{ genre_all.data | tojson }};
-        new Chart(ctx2.getContext('2d'), doughnutConfig(gLabels, gData));
+        var gColors = {{ genre_all.colors | tojson }};
+        new Chart(ctx2.getContext('2d'), doughnutConfig(gLabels, gData, gColors));
     }
 
     // CEFR分布（横棒グラフ）

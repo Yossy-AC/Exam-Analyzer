@@ -167,10 +167,6 @@
             </form>
 
             <div id="upload-results"></div>
-            <div id="job-status"
-                 hx-get="api/jobs"
-                 hx-trigger="load, every 5s"
-                 hx-target="#job-status"></div>
 
             <!-- 要確認リスト -->
             <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
@@ -183,6 +179,12 @@
                     <p style="color:var(--muted); font-size:13px;">「更新」ボタンを押して確認してください</p>
                 </div>
             </div>
+
+            <!-- 処理状況 -->
+            <div id="job-status" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;"
+                 hx-get="api/jobs"
+                 hx-trigger="load, every 5s"
+                 hx-target="#job-status"></div>
         </div>
 
         <!-- タブ3: 大学設定 -->

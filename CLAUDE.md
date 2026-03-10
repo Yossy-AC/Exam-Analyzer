@@ -91,6 +91,7 @@ fly deploy
 - 設問分析には全`## Instructions` + `## Data` + `## Questions`を結合して送信（要約指示・英作文指示も検出可能に）
 - チャンク分割対応: 同一Question IDの連続ブロックを自動マージ、アルファベット単体(`B`)→直前の`NA`から`NB`に補正、裸数字(`3`)→直前の`3B`にマージ
 - ファイル名パース: `_問題` サフィックスなし（例: `2024一橋大学.pdf`）にもフォールバック対応
+- 大学名正規化: `〇〇大学` → `〇〇大`（`_normalize_university_name()` / `_normalize_university()`）
 
 ## text_type 分類（5種別）
 - `long_reading`: 長文読解（200語以上 + 内容理解問題）
@@ -179,6 +180,7 @@ fly deploy
 - デスクトップ: フローティング（`position:absolute`）、モバイル: インライン展開
 - フィルタ状態判定: 全ON・全OFFは「制限なし」、一部チェック時のみ `is-filtered` クラス付与（黄色背景）
 - 類似検索タブ: ソース選択用（大学ドロップダウン連動）と検索結果絞り込み用の2つの「大学属性」パネル
+- ダッシュボード・長文統計・英作文統計: 「共通テスト」はデフォルトOFF
 
 ## 著作権省略検出
 - `parser.py:detect_copyright_omitted()`: Geminiマーカー(`<!-- COPYRIGHT_OMITTED`)+ 日本語正規表現フォールバック
@@ -208,6 +210,8 @@ fly deploy
 - 全テンプレートのハードコード色(`#f8f9fa`等)をCSS変数・ユーティリティクラスに置換
 - Chart.js: `cssVar()`ヘルパーでダークモード対応（`labelColor()`, `borderColor()`）
 - upload.py: アップロードサイズ制限（MD: 10MB, PDF: 50MB）
+- `.table-resizable th`: カラム幅リサイズ対応（アップロードタブ・大学設定テーブル）
+- `.sortable` ヘッダー: クリックでテーブルソート（⇅▲▼ インジケータ付き）
 
 ## PDF一括アップロード機能
 - 管理画面のアップロードタブでMD/PDFを統合ドロップゾーンで受付（フォルダD&D対応）
@@ -224,6 +228,8 @@ fly deploy
 - Caddyfile: グローバル `max_size 200MB`、`/staff/exam*` も `max_size 200MB`
 - アップロードUI: XHR手動送信 + プログレスバー（HTMX非使用）
 - Shift-JIS→UTF-8ファイル名変換: latin-1→cp932デコードフォールバック
-- ジョブ一覧: LIMIT 300（大量アップロード対応）
+- ジョブ一覧: LIMIT 300（大量アップロード対応）、ソート可能（ファイル名・状態・抽出数・開始日時）
 - アップロード時にCEFR推定も自動実行（long_readingのみ、`backfill_cefr.py` 不要に）
 - ファイル名パース: `_問題` サフィックスなしにもフォールバック対応（`parse_filename()`, `extract_university_from_filename()`）
+- MD処理時もcurrent_step表示（parsing → classifying）
+- 要確認リスト: 処理状況リストの上に表示、再投入成功時に旧警告を自動非表示

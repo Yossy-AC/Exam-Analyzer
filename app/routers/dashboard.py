@@ -146,6 +146,7 @@ async def dashboard_partial(
             "genre_all": {
                 "labels": [r["genre_main"] for r in genre_all_rows],
                 "data": [r["count"] for r in genre_all_rows],
+                "colors": [_genre_color(r["genre_main"]) for r in genre_all_rows],
             },
             "comp_presence": {
                 "labels": ["出題あり", "出題なし"],

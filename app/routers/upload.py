@@ -168,7 +168,7 @@ def _update_job(
 
 async def _process_file(job_id: int, filename: str, content: str) -> None:
     """1ファイルを解析する非同期タスク。"""
-    _update_job(job_id, "processing")
+    _update_job(job_id, "processing", current_step="parsing")
     try:
         passages = parse_md(content, filename)
         if not passages:
@@ -189,6 +189,7 @@ async def _process_file(job_id: int, filename: str, content: str) -> None:
             _update_job(job_id, "completed", 0, "全パッセージが登録済みです")
             return
 
+        _update_job(job_id, "processing", current_step="classifying")
         count = 0
         errors = []
         for pq in new_passages:
@@ -401,7 +402,7 @@ async def get_review_list(request: Request):
                   WHERE j2.filename = j.filename
                     AND j2.id > j.id
                     AND j2.status = 'completed'
-                    AND j2.passages_created > 2
+                    AND j2.passages_created > 0
               )
               AND j.id = (
                   SELECT MAX(j3.id) FROM analysis_jobs j3

@@ -1,12 +1,13 @@
 {% if jobs %}
-<table class="table table-sm">
+<h4 style="margin:0 0 8px;">処理状況（{{ jobs|length }}件）</h4>
+<table class="table table-sm table-resizable" id="job-table">
     <thead>
         <tr>
-            <th>ファイル</th>
-            <th>状態</th>
-            <th>抽出数</th>
+            <th class="sortable" data-col="0">ファイル</th>
+            <th class="sortable" data-col="1">状態</th>
+            <th class="sortable" data-col="2">抽出数</th>
             <th>エラー</th>
-            <th>開始</th>
+            <th class="sortable" data-col="4">開始</th>
         </tr>
     </thead>
     <tbody>
@@ -16,7 +17,7 @@
             <td>
                 {% if job.status == 'pending' %}待機中
                 {% elif job.status == 'processing' %}
-                    {% if job.source_type == 'pdf' and job.current_step %}
+                    {% if job.current_step %}
                         {% if job.current_step == 'gemini_converting' %}Gemini変換中...
                         {% elif job.current_step == 'parsing' %}MD解析中...
                         {% elif job.current_step == 'classifying' %}Claude分類中...
@@ -35,6 +36,36 @@
         {% endfor %}
     </tbody>
 </table>
+
+<script>
+(function() {
+    var table = document.getElementById('job-table');
+    if (!table) return;
+    var headers = table.querySelectorAll('th.sortable');
+    var sortState = {};
+    headers.forEach(function(th) {
+        th.addEventListener('click', function() {
+            var col = parseInt(th.dataset.col);
+            var asc = sortState[col] === 'asc' ? 'desc' : 'asc';
+            sortState = {};
+            sortState[col] = asc;
+            headers.forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+            th.classList.add('sort-' + asc);
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b) {
+                var va = a.cells[col].textContent.trim();
+                var vb = b.cells[col].textContent.trim();
+                var na = parseFloat(va), nb = parseFloat(vb);
+                if (!isNaN(na) && !isNaN(nb)) return asc === 'asc' ? na - nb : nb - na;
+                return asc === 'asc' ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja');
+            });
+            rows.forEach(function(r) { tbody.appendChild(r); });
+        });
+    });
+})();
+</script>
 {% else %}
+<h4 style="margin:0 0 8px;">処理状況</h4>
 <p class="muted">解析ジョブはありません</p>
 {% endif %}

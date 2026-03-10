@@ -183,8 +183,14 @@ body {
 }
 .table th.sortable { cursor: pointer; user-select: none; }
 .table th.sortable:hover { background: var(--row-hover); }
+.table th.sortable::after { content: '⇅'; font-size: 10px; margin-left: 4px; opacity: 0.3; }
+.table th.sortable.sort-asc::after { content: '▲'; opacity: 0.8; }
+.table th.sortable.sort-desc::after { content: '▼'; opacity: 0.8; }
 .table th .sort-arrow { font-size: 10px; margin-left: 2px; opacity: 0.4; }
 .table th.sort-active .sort-arrow { opacity: 1; }
+
+/* Resizable columns */
+.table-resizable th { resize: horizontal; overflow: hidden; min-width: 40px; }
 .table tbody tr:nth-child(even) { background: var(--row-stripe, rgba(0,0,0,0.02)); }
 [data-theme="dark"] .table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
 .table tbody tr:hover { background: var(--row-hover); }

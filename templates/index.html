@@ -48,7 +48,7 @@
                 <div class="checkbox-list">
                     {% for cls in university_class_list %}
                     <label class="checkbox-item">
-                        <input type="checkbox" name="university_class" value="{{ cls }}" checked> {{ cls }}
+                        <input type="checkbox" name="university_class" value="{{ cls }}" {% if cls != '共通テスト' %}checked{% endif %}> {{ cls }}
                     </label>
                     {% endfor %}
                 </div>
