@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from app.config import GENRE_MAIN_LIST
+from app.config import GENRE_MAIN_LIST, TEXT_TYPE_LABELS
 from app.db import build_filter_where, get_connection
 
 router = APIRouter()
@@ -20,12 +20,6 @@ GENRE_COLORS = [
     "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac",
 ]
 
-TEXT_TYPE_LABELS = {
-    "long_reading": "長文読解",
-    "short_translation": "短文和訳",
-    "composition": "英作文",
-    "listening": "リスニング",
-}
 TEXT_TYPE_COLORS = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2"]
 
 

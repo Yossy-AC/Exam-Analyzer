@@ -1,4 +1,5 @@
 <!-- 上段: 総大問数 + 長文集計 -->
+<p class="text-muted-sm" style="margin-bottom:12px;">国公立大学の入試英語問題を分類・分析したデータベースです。フィルターで年度・大学分類・地域を絞り込めます。</p>
 <div class="dashboard-grid">
     <div class="dashboard-section">
         <h4>総大問数</h4>
@@ -6,14 +7,17 @@
             <div class="kpi-card">
                 <div class="kpi-label">大問数</div>
                 <div class="kpi-value">{{ total_passages }}</div>
+                <div class="text-muted-sm">収録入試問題の総数</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">大学数</div>
                 <div class="kpi-value">{{ total_universities }}</div>
+                <div class="text-muted-sm">データ収録大学数</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">年度範囲</div>
                 <div class="kpi-value" style="font-size:20px;">{{ year_min }}〜{{ year_max }}</div>
+                <div class="text-muted-sm">収録年度の範囲</div>
             </div>
         </div>
         <h4 style="margin-top:12px;">問題形式分布</h4>

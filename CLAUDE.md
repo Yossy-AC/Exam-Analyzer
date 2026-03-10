@@ -157,9 +157,10 @@ fly deploy
 - プロンプトやパーサー修正後は全削除→再アップロードが必要（`INSERT OR IGNORE`のため）
 
 ## data/フォルダ
-- OneDriveへのシンボリックリンク（`C:\Users\yoshi\OneDrive\DO_NOT_CHANGE_NAME`）
-- 自宅・職場PC間のDB同期に使用。同時起動禁止。
+- OneDriveへのシンボリックリンク（`Dev/setup.sh` で作成）
+- 自宅・職場・ノートPC間のDB同期に使用。同時起動禁止。
 - 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
+- セットアップ: `bash setup.sh <OneDriveのDO_NOT_CHANGE_NAMEパス>`（Dev/で1回実行）
 
 ## ジャンル分類スキーム（10カテゴリ）
 科学・技術 / 医療・健康 / 心理・行動 / 教育・学習 / 環境・自然 / 社会・文化 / 経済・ビジネス / 歴史・哲学 / 言語・コミュニケーション / その他
@@ -203,6 +204,22 @@ fly deploy
 - テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`
 - 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
 - DBスキーマ変更時は `db.py` の `SCHEMA_SQL` を更新し、`init_db()` の冪等性を維持
+
+## UI改善（2026年3月Phase1-4）
+- `TEXT_TYPE_LABELS`: `config.py`に一元化、テンプレートで日本語表示（長文読解/短文和訳/英作文/その他/リスニング）
+- 要確認リスト: データ問題行に「編集」ボタン追加 → `jumpToRecord()`でデータ一覧タブへ直行
+- テーブルヘッダー固定: `.table-scroll`に`max-height: calc(100vh - 220px); overflow-y: auto;`、`.table th`に`z-index: 2`
+- チャートタブ読み込み表示: canvasを`opacity: 0.3`にして再描画時に復元
+- 一括レビュー済み: `PATCH /api/passages/bulk-review` エンドポイント + `#bulk-bar`に「一括確認済み」ボタン
+- 大学検索補完: `<datalist id="university-datalist">` + `<input list=...>`（大学比較・プロフィール・経年・類似検索）
+- 類似検索クイックサーチ: テキスト入力で`_similarPassages`をフィルタ、カスケードは`<details>`内に格納
+- manage.htmlフィルタURL保存: `applyRecordsFilter()`でURLパラメータ更新、リロード時に復元
+- ダッシュボードKPI説明文: 各KPIカードにサブテキスト + 冒頭にシステム説明
+- ジョブステップインジケータ: `.step-indicator`（G→M→C→✓）、`.step-active`（パルスアニメーション）、`.step-done`（緑チェック）
+- モバイルフィルタ: bottom sheet化（`.filters-open`でfixed bottom配置 + slide-upアニメーション + overlay）
+- トースト通知: `showToast(message, type)` をbase.htmlに定義、全`alert()`を置換
+- 大学プロフィールディープリンク: `?tab=other&university=東京大`でプロフィール直接表示
+- モーダルフォーカス管理: Escape閉じ + オーバーレイクリック閉じ + 自動フォーカス
 
 ## デザイン・UI（2026年3月更新）
 - CSS: `--text-secondary`, `--danger-bg`, `--warning-bg`, `--warning-text`, `--orange` 変数追加（ダークモード対応）

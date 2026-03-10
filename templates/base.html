@@ -56,6 +56,23 @@
         {% block content %}{% endblock %}
     </main>
 
+    <div id="toast-container" style="position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px;"></div>
+    <script>
+    function showToast(message, type) {
+        type = type || 'info';
+        var container = document.getElementById('toast-container');
+        var toast = document.createElement('div');
+        toast.style.cssText = 'padding:10px 16px; border-radius:6px; font-size:13px; color:#fff; max-width:320px; box-shadow:0 2px 8px rgba(0,0,0,0.2); opacity:0; transition:opacity 0.3s;';
+        toast.style.background = type === 'error' ? 'var(--danger, #e15759)' : type === 'success' ? 'var(--success, #34c759)' : 'var(--primary, #4e79a7)';
+        toast.textContent = message;
+        container.appendChild(toast);
+        requestAnimationFrame(function() { toast.style.opacity = '1'; });
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 3000);
+    }
+    </script>
     <script src="/portal-assets/portal-nav.js"></script>
 </body>
 </html>

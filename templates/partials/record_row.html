@@ -4,7 +4,7 @@
     <td>{{ p.university }}</td>
     <td>{{ p.year }}</td>
     <td>{{ p.question_number }}-{{ p.passage_index }}</td>
-    <td>{{ p.text_type }}</td>
+    <td>{{ text_type_labels.get(p.text_type, p.text_type) if text_type_labels is defined else p.text_type }}</td>
     <td class="staff-only">
         <select hx-put="/api/passages/{{ p.id }}"
                 hx-target="#row-{{ p.id }}"

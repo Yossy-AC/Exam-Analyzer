@@ -2,7 +2,7 @@
 {% block content %}
 <div class="dashboard">
     <aside class="filters">
-        <button type="button" class="filter-toggle btn btn-sm" onclick="this.parentElement.classList.toggle('filters-open')" style="display:none; width:100%; margin-bottom:8px;">フィルター ▼</button>
+        <button type="button" class="filter-toggle btn btn-sm" onclick="toggleMobileFilters()" style="display:none; width:100%; margin-bottom:8px;">フィルター ▼</button>
         <h3>フィルター</h3>
         <form id="filter-form">
             <!-- 年度 -->
@@ -78,6 +78,12 @@
     </aside>
 
     <section class="content">
+        <div class="filters-overlay" onclick="toggleMobileFilters()"></div>
+        <datalist id="university-datalist">
+            {% for u in universities %}
+            <option value="{{ u }}">
+            {% endfor %}
+        </datalist>
         <!-- デスクトップ: 7タブ -->
         <div class="tabs desktop-tabs">
             <button class="tab active" data-tab="dashboard">ダッシュボード</button>
@@ -214,7 +220,17 @@
 
     <!-- タブ5: 類似長文検索（旧タブ6） -->
     <div class="tab-panel" id="tab-similar">
-        <div class="tab-controls" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
+        <div style="margin-bottom:12px;">
+            <label style="display:flex; flex-direction:column; gap:4px; max-width:360px;">
+                <span style="font-size:12px; color:var(--muted);">クイックサーチ（大学名・年度で絞込）</span>
+                <input id="similar-quick-search" type="text" placeholder="例: 東京大 2024" oninput="onQuickSearchInput(this.value)" style="padding:6px 10px; border:1px solid var(--border); border-radius:4px; font-size:14px;">
+            </label>
+            <select id="similar-quick-results" size="6" style="display:none; width:100%; max-width:360px; margin-top:4px; font-size:13px; border:1px solid var(--border); border-radius:4px;" onchange="onQuickSearchSelect(this.value)">
+            </select>
+        </div>
+        <details style="margin-bottom:12px;">
+            <summary style="font-size:13px; color:var(--muted); cursor:pointer;">詳細検索（年度→大学→パッセージ）</summary>
+        <div class="tab-controls" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px; margin-top:8px;">
             <label style="display:flex; flex-direction:column; gap:4px; min-width:90px;">
                 <span style="font-size:12px; color:var(--muted);">年度</span>
                 <select id="similar-year" style="min-width:90px;" onchange="onSimilarYearChange()">
@@ -353,6 +369,7 @@
             </details>
             <button class="btn btn-primary" onclick="loadSimilar()">検索</button>
         </div>
+        </details>
         <div id="similar-results">
             <p class="muted">パッセージを選択して検索してください</p>
         </div>
@@ -393,10 +410,11 @@
             <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">種別
                 <select id="analysis-filter-text-type" onchange="applyAnalysisFilter()">
                     <option value="">すべて</option>
-                    <option value="long_reading">long_reading</option>
-                    <option value="short_translation">short_translation</option>
-                    <option value="composition">composition</option>
-                    <option value="listening">listening</option>
+                    <option value="long_reading">長文読解</option>
+                    <option value="short_translation">短文和訳</option>
+                    <option value="composition">英作文</option>
+                    <option value="others">その他</option>
+                    <option value="listening">リスニング</option>
                 </select>
             </label>
             <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">ジャンル
@@ -437,30 +455,15 @@
             <div class="tab-controls" style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
                 <label style="display:flex; flex-direction:column; gap:4px;">
                     <span style="font-size:12px; color:var(--muted);">大学1</span>
-                    <select id="compare-uni1" style="min-width:120px;">
-                        <option value="">-- 選択 --</option>
-                        {% for u in universities %}
-                        <option value="{{ u }}">{{ u }}</option>
-                        {% endfor %}
-                    </select>
+                    <input id="compare-uni1" list="university-datalist" placeholder="大学名を入力" style="min-width:120px;">
                 </label>
                 <label style="display:flex; flex-direction:column; gap:4px;">
                     <span style="font-size:12px; color:var(--muted);">大学2</span>
-                    <select id="compare-uni2" style="min-width:120px;">
-                        <option value="">-- 選択 --</option>
-                        {% for u in universities %}
-                        <option value="{{ u }}">{{ u }}</option>
-                        {% endfor %}
-                    </select>
+                    <input id="compare-uni2" list="university-datalist" placeholder="大学名を入力" style="min-width:120px;">
                 </label>
                 <label style="display:flex; flex-direction:column; gap:4px;">
                     <span style="font-size:12px; color:var(--muted);">大学3</span>
-                    <select id="compare-uni3" style="min-width:120px;">
-                        <option value="">-- 選択 --</option>
-                        {% for u in universities %}
-                        <option value="{{ u }}">{{ u }}</option>
-                        {% endfor %}
-                    </select>
+                    <input id="compare-uni3" list="university-datalist" placeholder="大学名を入力" style="min-width:120px;">
                 </label>
                 <button class="btn btn-primary" onclick="loadCompareChart()">比較</button>
             </div>
@@ -473,12 +476,7 @@
         <div class="other-sub-panel" id="other-sub-uni-profile" style="display:none;">
             <div class="tab-controls">
                 <label>大学を選択:
-                    <select id="profile-university" onchange="loadUniversityProfile()">
-                        <option value="">-- 選択 --</option>
-                        {% for u in universities %}
-                        <option value="{{ u }}">{{ u }}</option>
-                        {% endfor %}
-                    </select>
+                    <input id="profile-university" list="university-datalist" placeholder="大学名を入力" onchange="loadUniversityProfile()">
                 </label>
             </div>
             <div id="profile-content">
@@ -489,12 +487,7 @@
         <div class="other-sub-panel" id="other-sub-yearly" style="display:none;">
             <div class="tab-controls">
                 <label>大学を選択:
-                    <select id="yearly-university" onchange="loadYearlyTrend()">
-                        <option value="">-- 選択 --</option>
-                        {% for u in universities %}
-                        <option value="{{ u }}">{{ u }}</option>
-                        {% endfor %}
-                    </select>
+                    <input id="yearly-university" list="university-datalist" placeholder="大学名を入力" onchange="loadYearlyTrend()">
                 </label>
             </div>
             <div class="chart-grid">
@@ -515,6 +508,12 @@
 
 <script>
 const BASE = document.querySelector('base')?.href || '/';
+
+function toggleMobileFilters() {
+    var aside = document.querySelector('.filters');
+    aside.classList.toggle('filters-open');
+    document.body.classList.toggle('filters-shown', aside.classList.contains('filters-open'));
+}
 
 // モバイルタブ → デスクトップタブのマッピング
 const MOBILE_TAB_MAP = {
@@ -554,6 +553,9 @@ function saveStateToURL() {
     if (checkedRegion.length < allRegion.length) {
         checkedRegion.forEach(cb => params.append('rgn', cb.value));
     }
+    // 大学プロフィール
+    var profileUni = document.getElementById('profile-university')?.value;
+    if (profileUni) params.set('university', profileUni);
     const qs = params.toString();
     history.replaceState(null, '', qs ? '?' + qs : location.pathname);
 }
@@ -575,12 +577,15 @@ function restoreStateFromURL() {
         const vals = params.getAll('rgn');
         document.querySelectorAll('[name=region]').forEach(cb => { cb.checked = vals.includes(cb.value); });
     }
+    // 大学プロフィール復元
+    var uni = params.get('university');
     // タブ復元
     if (isMobile() && params.has('mtab')) {
-        return { mobile: params.get('mtab') };
+        return { mobile: params.get('mtab'), university: uni };
     } else if (params.has('tab')) {
-        return { desktop: params.get('tab') };
+        return { desktop: params.get('tab'), university: uni };
     }
+    if (uni) return { desktop: 'other', university: uni };
     return null;
 }
 
@@ -653,6 +658,12 @@ if (_hashTab) {
     switchMobileTab(_restored.mobile);
 } else if (_restored?.desktop) {
     switchTab(_restored.desktop);
+    if (_restored.university) {
+        var profEl = document.getElementById('profile-university');
+        if (profEl) { profEl.value = _restored.university; }
+        if (typeof switchOtherTab === 'function') switchOtherTab('uni-profile');
+        if (typeof loadUniversityProfile === 'function') loadUniversityProfile();
+    }
 } else if (isMobile()) {
     switchMobileTab('overview');
 } else {
@@ -706,12 +717,12 @@ function getYearParams() {
 function applyFilters() {
     const classChecked = [...document.querySelectorAll('[name=university_class]:checked')];
     if (classChecked.length === 0) {
-        alert('大学分類を1つ以上選択してください。');
+        showToast('大学分類を1つ以上選択してください', 'error');
         return;
     }
     const regionChecked = [...document.querySelectorAll('[name=region]:checked')];
     if (regionChecked.length === 0) {
-        alert('地域を1つ以上選択してください。');
+        showToast('地域を1つ以上選択してください', 'error');
         return;
     }
 
@@ -736,7 +747,9 @@ var borderColor = function() { return cssVar('--border') || borderColor(); };
 const charts = {};
 function createChart(id, config) {
     if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart(document.getElementById(id).getContext('2d'), config);
+    var el = document.getElementById(id);
+    el.style.opacity = '1';
+    charts[id] = new Chart(el.getContext('2d'), config);
 }
 
 const PALETTE = ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'];
@@ -795,6 +808,7 @@ function loadDashboard() {
 
 // ---------- タブ2: 長文統計 ----------
 async function loadReadingStats() {
+    document.querySelectorAll('#tab-reading canvas').forEach(c => { c.style.opacity = '0.3'; });
     const params = getFilterParams();
     const res = await fetch(BASE + 'api/stats/reading-stats?' + params.toString());
     const data = await res.json();
@@ -958,6 +972,7 @@ async function loadReadingStats() {
 
 // ---------- タブ3: 英作文統計 ----------
 async function loadCompositionStats() {
+    document.querySelectorAll('#tab-composition canvas').forEach(c => { c.style.opacity = '0.3'; });
     const params = getFilterParams();
     const res = await fetch(BASE + 'api/stats/composition-stats?' + params.toString());
     const data = await res.json();
@@ -1009,7 +1024,7 @@ function onPracticeTextTypeChange() {
 
 function loadPracticeList() {
     const tt = document.getElementById('practice-text-type').value;
-    if (!tt) { alert('問題形式を選択してください'); return; }
+    if (!tt) { showToast('問題形式を選択してください', 'error'); return; }
     const params = new URLSearchParams();
     params.append('text_type', tt);
     if (tt === 'long_reading') {
@@ -1031,7 +1046,7 @@ async function loadCompareChart() {
     const uni1 = document.getElementById('compare-uni1').value;
     const uni2 = document.getElementById('compare-uni2').value;
     const uni3 = document.getElementById('compare-uni3').value;
-    if (!uni1 && !uni2 && !uni3) { alert('大学を1つ以上選択してください'); return; }
+    if (!uni1 && !uni2 && !uni3) { showToast('大学を1つ以上選択してください', 'error'); return; }
     const params = getYearParams();
     if (uni1) params.append('uni1', uni1);
     if (uni2) params.append('uni2', uni2);
@@ -1124,6 +1139,40 @@ function applyAnalysisFilter() {
         .then(function(r) { return r.text(); })
         .then(function(html) { el.innerHTML = html; })
         .catch(function() { el.innerHTML = '<p class="muted">エラーが発生しました</p>'; });
+}
+
+function onQuickSearchInput(query) {
+    var resultsSel = document.getElementById('similar-quick-results');
+    if (!_similarPassages || !query || query.length < 2) {
+        resultsSel.style.display = 'none';
+        return;
+    }
+    var terms = query.trim().split(/\s+/);
+    var matches = _similarPassages.filter(function(p) {
+        if (p.university_class === '共通テスト') return false;
+        var label = p.university + ' ' + p.year;
+        return terms.every(function(t) { return label.indexOf(t) !== -1; });
+    });
+    if (matches.length === 0) {
+        resultsSel.style.display = 'none';
+        return;
+    }
+    resultsSel.innerHTML = '';
+    matches.slice(0, 30).forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.university + ' ' + p.year + '年 ' + p.question_number + '-' + p.passage_index + (p.genre_main ? ' [' + p.genre_main + ']' : '');
+        resultsSel.appendChild(opt);
+    });
+    resultsSel.style.display = '';
+}
+
+function onQuickSearchSelect(passageId) {
+    if (!passageId) return;
+    document.getElementById('similar-passage-id').innerHTML = '<option value="' + passageId + '" selected>' + passageId + '</option>';
+    document.getElementById('similar-passage-id').disabled = false;
+    loadSimilar();
+    document.getElementById('similar-quick-results').style.display = 'none';
 }
 
 function loadSimilarPassageList() {
@@ -1241,7 +1290,7 @@ function loadSimilar() {
     var milestone = document.getElementById('similar-wordbook-milestone').value;
     var vocabMin = document.getElementById('similar-vocab-min').value;
 
-    if (!pid) { alert('パッセージを選択してください'); return; }
+    if (!pid) { showToast('パッセージを選択してください', 'error'); return; }
 
     var params = new URLSearchParams({ passage_id: pid, top_k: topK, exclude_same_university: excl });
     if (cefrMin) params.set('cefr_min', cefrMin);

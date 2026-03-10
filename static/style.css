@@ -181,6 +181,7 @@ body {
     font-weight: 600;
     position: sticky;
     top: 0;
+    z-index: 2;
     cursor: default;
 }
 [data-theme="dark"] .table th {
@@ -206,8 +207,8 @@ body {
 /* Student view: hide staff-only columns */
 .student-view .staff-only { display: none; }
 
-/* Table scroll container for mobile */
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Table scroll container */
+.table-scroll { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 220px); -webkit-overflow-scrolling: touch; }
 
 /* Inline edit */
 .inline-select {
@@ -472,8 +473,25 @@ canvas { max-height: 500px; }
         border-bottom: 1px solid var(--border);
     }
     .filters > *:not(.filter-toggle) { display: none; }
+    .filters.filters-open {
+        position: fixed; bottom: 0; left: 0; right: 0; top: auto;
+        z-index: 999; background: var(--surface);
+        border-top: 2px solid var(--primary);
+        border-right: none; border-bottom: none;
+        max-height: 70vh; overflow-y: auto;
+        padding: 16px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+        border-radius: 12px 12px 0 0;
+        animation: slide-up 0.25s ease-out;
+    }
     .filters.filters-open > * { display: block; }
     .filter-toggle { display: block !important; }
+    .filters-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.4); z-index: 998;
+    }
+    .filters-open ~ .content .filters-overlay,
+    body.filters-shown .filters-overlay { display: block; }
+    @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
     .chart-grid { grid-template-columns: 1fr; }
     .chart-grid-3 { grid-template-columns: 1fr; }
     .profile-grid { grid-template-columns: 1fr; }
@@ -617,3 +635,16 @@ tr.copyright-omitted:hover { background: color-mix(in srgb, var(--muted) 25%, va
     white-space: nowrap;
     cursor: help;
 }
+
+/* Step indicator for job status */
+.step-indicator { display: inline-flex; gap: 2px; align-items: center; }
+.step {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    font-size: 10px; font-weight: 600;
+    background: var(--bg-subtle); color: var(--muted);
+    border: 1.5px solid var(--border);
+}
+.step-active { background: var(--primary); color: #fff; border-color: var(--primary); animation: pulse-step 1.2s infinite; }
+.step-done { background: var(--success, #34c759); color: #fff; border-color: var(--success, #34c759); }
+@keyframes pulse-step { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }

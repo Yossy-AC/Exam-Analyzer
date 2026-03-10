@@ -43,10 +43,11 @@
                 <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">種別
                     <select id="filter-text-type" onchange="applyRecordsFilter()">
                         <option value="">すべて</option>
-                        <option value="long_reading">long_reading</option>
-                        <option value="short_translation">short_translation</option>
-                        <option value="composition">composition</option>
-                        <option value="listening">listening</option>
+                        <option value="long_reading">長文読解</option>
+                        <option value="short_translation">短文和訳</option>
+                        <option value="composition">英作文</option>
+                        <option value="others">その他</option>
+                        <option value="listening">リスニング</option>
                     </select>
                 </label>
                 <label style="display:flex; flex-direction:column; gap:2px; font-size:12px;">ジャンル
@@ -83,6 +84,7 @@
             </div>
             <div id="bulk-bar" style="display:none; margin-bottom:8px;">
                 <button class="btn btn-sm btn-danger" onclick="bulkDelete()">選択した行を削除</button>
+                <button class="btn btn-sm" onclick="bulkReview()">一括確認済み</button>
                 <span id="bulk-count" style="font-size:12px; color:var(--muted); margin-left:8px;"></span>
             </div>
             <div id="records-table"
@@ -214,6 +216,13 @@
 const BASE = document.querySelector('base')?.href || '/';
 
 // タブ切り替え
+function jumpToRecord(universityName) {
+    switchTab('records');
+    const el = document.getElementById('filter-university-name');
+    if (el) { el.value = universityName; }
+    applyRecordsFilter();
+}
+
 function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -231,13 +240,33 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
-// リロード時にハッシュからタブを復元
+// リロード時にハッシュ・フィルタを復元
 if (location.hash) {
     const tab = location.hash.slice(1);
     if (document.querySelector(`.tab[data-tab="${tab}"]`)) {
         switchTab(tab);
     }
 }
+(function restoreFilters() {
+    var sp = new URLSearchParams(window.location.search);
+    var map = {
+        'university_name': 'filter-university-name',
+        'text_type': 'filter-text-type',
+        'genre_main': 'filter-genre-main',
+        'cefr_level': 'filter-cefr-level',
+        'theme': 'filter-theme',
+        'reviewed': 'filter-reviewed'
+    };
+    var hasFilter = false;
+    for (var key in map) {
+        var val = sp.get(key);
+        if (val) {
+            var el = document.getElementById(map[key]);
+            if (el) { el.value = val; hasFilter = true; }
+        }
+    }
+    if (hasFilter) applyRecordsFilter();
+})();
 
 // アップロード送信（fetch API + プログレス表示）
 function submitUpload(e) {
@@ -381,17 +410,43 @@ function applyRecordsFilter() {
     document.querySelectorAll('[name=manage-cls]:checked').forEach(cb => params.append('university_class', cb.value));
     document.querySelectorAll('[name=manage-rgn]:checked').forEach(cb => params.append('region', cb.value));
     loadPartial(BASE + 'api/passages?' + params.toString(), 'records-table');
+    // URLにフィルタ状態を保存
+    var url = new URL(window.location);
+    url.searchParams.delete('university_name'); url.searchParams.delete('text_type');
+    url.searchParams.delete('genre_main'); url.searchParams.delete('cefr_level');
+    url.searchParams.delete('theme'); url.searchParams.delete('reviewed');
+    if (uniName) url.searchParams.set('university_name', uniName);
+    if (textType) url.searchParams.set('text_type', textType);
+    if (genreMain) url.searchParams.set('genre_main', genreMain);
+    if (cefrLevel) url.searchParams.set('cefr_level', cefrLevel);
+    if (theme) url.searchParams.set('theme', theme);
+    if (reviewed) url.searchParams.set('reviewed', reviewed);
+    history.replaceState(null, '', url);
 }
 
 // ---------- データ追加モーダル ----------
 function openAddPassageModal() {
     document.getElementById('add-passage-error').textContent = '';
-    document.getElementById('add-passage-modal').style.display = 'block';
+    var modal = document.getElementById('add-passage-modal');
+    modal.style.display = 'block';
+    var first = modal.querySelector('input, select');
+    if (first) first.focus();
 }
 
 function closeAddPassageModal() {
     document.getElementById('add-passage-modal').style.display = 'none';
 }
+
+// モーダル: Escapeで閉じる + オーバーレイクリックで閉じる
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var modal = document.getElementById('add-passage-modal');
+        if (modal && modal.style.display === 'block') closeAddPassageModal();
+    }
+});
+document.getElementById('add-passage-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeAddPassageModal();
+});
 
 async function submitAddPassage() {
     const university = document.getElementById('new-university').value.trim();
@@ -446,10 +501,10 @@ async function runReclassify() {
     try {
         const res = await fetch(BASE + 'api/passages/reclassify-sub', { method: 'POST' });
         const data = await res.json();
-        alert(`完了: ${data.updated}件を更新しました`);
+        showToast(`完了: ${data.updated}件を更新しました`, 'success');
         loadPartial(BASE + 'api/review-list', 'review-list');
     } catch (e) {
-        alert('エラー: ' + e.message);
+        showToast('エラー: ' + e.message, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = 'その他○○ を再分類';
@@ -557,9 +612,28 @@ async function bulkDelete() {
             }
         } catch (e) { /* skip */ }
     }
-    alert(`${deleted}件を削除しました`);
+    showToast(`${deleted}件を削除しました`, 'success');
     applyPagination();
     updateBulkBar();
+}
+
+async function bulkReview() {
+    const checked = document.querySelectorAll('.row-select:checked');
+    if (checked.length === 0) return;
+    const ids = Array.from(checked).map(cb => cb.value);
+    try {
+        const res = await fetch(BASE + 'api/passages/bulk-review', {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ids: ids})
+        });
+        if (!res.ok) throw new Error('更新失敗');
+        const data = await res.json();
+        showToast(`${data.updated}件を確認済みにしました`, 'success');
+        applyRecordsFilter();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
 }
 
 // ---------- フィルターパネル ----------

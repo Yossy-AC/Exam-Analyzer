@@ -62,6 +62,7 @@
                     <th class="sortable" data-col="3">ジャンル</th>
                     <th class="sortable" data-col="4">テーマ</th>
                     <th>状態</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -89,6 +90,8 @@
                         <span class="copyright-badge">©省略</span>
                         {% endif %}
                     </td>
+                    <td><button class="btn btn-sm" style="font-size:11px; padding:1px 6px;"
+                            onclick="jumpToRecord('{{ p.university }}')">編集</button></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -107,7 +110,7 @@ async function dismissJob(jobId, btn) {
         if (!res.ok) throw new Error('削除失敗');
         row.remove();
     } catch (e) {
-        alert(e.message);
+        showToast(e.message, 'error');
     }
 }
 // review_list読み込み後にテーブル初期化

@@ -14,18 +14,14 @@
         <tr data-status="{{ job.status }}" class="{% if job.status == 'completed' %}row-success{% elif job.status == 'error' %}row-error{% elif job.status == 'processing' %}row-processing{% endif %}">
             <td>{{ job.filename }}</td>
             <td>
-                {% if job.status == 'pending' %}待機中
-                {% elif job.status == 'processing' %}
-                    {% if job.current_step %}
-                        {% if job.current_step == 'gemini_converting' %}Gemini変換中...
-                        {% elif job.current_step == 'parsing' %}MD解析中...
-                        {% elif job.current_step == 'classifying' %}Claude分類中...
-                        {% else %}処理中...
-                        {% endif %}
-                    {% else %}処理中...
-                    {% endif %}
-                {% elif job.status == 'completed' %}完了
-                {% elif job.status == 'error' %}エラー
+                {% if job.status == 'error' %}<span class="text-danger">エラー</span>
+                {% elif job.status == 'pending' %}<span style="color:var(--muted);">待機中</span>
+                {% else %}
+                {% set step = job.current_step or '' %}
+                {% set is_pdf = job.source_type == 'pdf' if job.source_type is defined else false %}
+                <span class="step-indicator">
+                    {% if is_pdf %}<span class="step {% if step == 'gemini_converting' %}step-active{% elif step in ('parsing','classifying') or job.status == 'completed' %}step-done{% endif %}">G</span>{% endif %}<span class="step {% if step == 'parsing' %}step-active{% elif step == 'classifying' or job.status == 'completed' %}step-done{% endif %}">M</span><span class="step {% if step == 'classifying' %}step-active{% elif job.status == 'completed' %}step-done{% endif %}">C</span><span class="step {% if job.status == 'completed' %}step-done{% endif %}">&#10003;</span>
+                </span>
                 {% endif %}
             </td>
             <td>{{ job.passages_created }}</td>

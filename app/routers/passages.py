@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from app.config import GENRE_MAIN_LIST, TEXT_STYLE_LIST, TEXT_TYPE_LIST
+from app.config import GENRE_MAIN_LIST, TEXT_STYLE_LIST, TEXT_TYPE_LABELS, TEXT_TYPE_LIST
 from app.db import build_filter_where, get_connection
 from app.auth import is_student
 from app.models import PassageUpdate
@@ -85,6 +85,7 @@ async def list_passages(
             "passages": rows,
             "genre_list": GENRE_MAIN_LIST,
             "text_type_list": TEXT_TYPE_LIST,
+            "text_type_labels": TEXT_TYPE_LABELS,
             "text_style_list": TEXT_STYLE_LIST,
             "readonly": readonly,
         },
@@ -133,6 +134,7 @@ async def update_passage(request: Request, passage_id: str):
             "request": request,
             "p": row,
             "genre_list": GENRE_MAIN_LIST,
+            "text_type_labels": TEXT_TYPE_LABELS,
             "text_style_list": TEXT_STYLE_LIST,
         },
     )
@@ -206,6 +208,25 @@ _SUB_GENRE_MAP: dict[str, list[str]] = {
     "歴史・哲学": ["歴史","宗教・文化遺産","倫理・道徳","文明","その他歴史"],
     "言語・コミュニケーション": ["言語変化","翻訳・多言語","SNS・デジタル","対話・説得","言語理論・習得","手話・非言語","文学・文章論","その他言語"],
 }
+
+
+@router.patch("/api/passages/bulk-review")
+async def bulk_review(request: Request):
+    """選択したパッセージを一括で確認済みにする。"""
+    if is_student(request):
+        return JSONResponse({"error": "権限がありません"}, status_code=403)
+    body = await request.json()
+    ids = body.get("ids", [])
+    if not ids:
+        return JSONResponse({"error": "IDが指定されていません"}, status_code=400)
+    conn = get_connection()
+    try:
+        placeholders = ",".join("?" for _ in ids)
+        conn.execute(f"UPDATE passages SET reviewed = 1 WHERE id IN ({placeholders})", ids)
+        conn.commit()
+    finally:
+        conn.close()
+    return JSONResponse({"updated": len(ids)})
 
 
 @router.post("/api/passages/reclassify-sub")

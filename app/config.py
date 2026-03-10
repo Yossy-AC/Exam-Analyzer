@@ -34,6 +34,13 @@ GENRE_MAIN_LIST = [
 ]
 
 TEXT_TYPE_LIST = ["long_reading", "short_translation", "composition", "others", "listening"]
+TEXT_TYPE_LABELS = {
+    "long_reading": "長文読解",
+    "short_translation": "短文和訳",
+    "composition": "英作文",
+    "others": "その他",
+    "listening": "リスニング",
+}
 
 TEXT_STYLE_LIST = [
     "説明文",
