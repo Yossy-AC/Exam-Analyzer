@@ -160,6 +160,9 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
         ("embedding", "BLOB"),
         # 著作権省略フラグ
         ("copyright_omitted", "BOOLEAN DEFAULT 0"),
+        # 最強単語リストカバー率
+        ("saikyou_coverage", "REAL"),
+        ("saikyou_profile", "TEXT DEFAULT ''"),
     ]
     for col, typedef in migrations:
         if col not in existing:

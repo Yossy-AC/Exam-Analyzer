@@ -93,10 +93,12 @@ async def _save_passage(data: dict) -> None:
              cefr_j_beyond_rate, cefr_j_profile,
              ngsl_uncovered_rate, nawl_rate,
              target1900_coverage, target1900_profile,
-             leap_coverage, leap_profile, embedding, copyright_omitted,
+             leap_coverage, leap_profile,
+             saikyou_coverage, saikyou_profile,
+             embedding, copyright_omitted,
              cefr_level, cefr_score, cefr_confidence)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["id"], data["university"], data["year"], data["faculty"],
                 data["question_number"], data["passage_index"],
@@ -130,6 +132,8 @@ async def _save_passage(data: dict) -> None:
                 json.dumps(vocab.get("target1900_profile", {})),
                 vocab.get("leap_coverage"),
                 json.dumps(vocab.get("leap_profile", {})),
+                vocab.get("saikyou_coverage"),
+                json.dumps(vocab.get("saikyou_profile", {})),
                 embedding_blob,
                 data.get("copyright_omitted", False),
                 data.get("cefr_level", ""),

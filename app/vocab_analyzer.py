@@ -67,6 +67,14 @@ def _load_leap() -> list[str]:
             if line.strip() and not line.startswith("#")]
 
 
+@lru_cache(maxsize=1)
+def _load_saikyou() -> list[str]:
+    """最強単語リストの見出し語を順序付きリストで返す。"""
+    path = WORDLISTS_DIR / "saikyou.txt"
+    return [line.strip().lower() for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")]
+
+
 def _calc_wordbook_profile(
     lemmas: list[str], wordlist: list[str], step: int = 100,
     base_words: set[str] | None = None,
@@ -198,6 +206,8 @@ def analyze_vocab(text: str) -> dict:
             "target1900_profile": {},
             "leap_coverage": None,
             "leap_profile": {},
+            "saikyou_coverage": None,
+            "saikyou_profile": {},
         }
 
     total = len(lemmas)
@@ -228,6 +238,7 @@ def analyze_vocab(text: str) -> dict:
     junior_high = _load_junior_high()
     t1900_result = _calc_wordbook_profile(lemmas, _load_target1900(), base_words=junior_high)
     leap_result = _calc_wordbook_profile(lemmas, _load_leap(), base_words=junior_high)
+    saikyou_result = _calc_wordbook_profile(lemmas, _load_saikyou(), base_words=junior_high)
 
     return {
         "avg_sentence_length": calc_avg_sentence_length(text),
@@ -239,4 +250,6 @@ def analyze_vocab(text: str) -> dict:
         "target1900_profile": t1900_result["profile"],
         "leap_coverage": leap_result["coverage"],
         "leap_profile": leap_result["profile"],
+        "saikyou_coverage": saikyou_result["coverage"],
+        "saikyou_profile": saikyou_result["profile"],
     }

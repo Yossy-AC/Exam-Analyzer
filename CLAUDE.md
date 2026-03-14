@@ -13,7 +13,7 @@
 - **PDF変換**: Gemini API (`gemini-2.5-pro`) でPDF→Markdown変換
 - **CEFR推定**: Claude APIで長文のCEFRレベル（A2〜C2）を推定
 - **Embedding**: Voyage AI (`voyage-4`, 1024次元) でテキスト類似度検索
-- **語彙分析**: NLTK + 6語彙リスト（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP）
+- **語彙分析**: NLTK + 7語彙リスト（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP, 最強単語リスト）
 - **デプロイ**: Fly.io (東京リージョン nrt)
 
 ## ディレクトリ構成
@@ -135,7 +135,7 @@ fly deploy
 
 ## 語彙分析・CEFR推定・類似長文検索
 - `vocab_analyzer.py`: long_readingのtext_bodyから語彙指標を自動計算（アップロード時）
-  - CEFR-Jレベル別分布 + B2超過率、NGSL未カバー率、NAWL率、ターゲット1900/LEAPカバー率、平均文長
+  - CEFR-Jレベル別分布 + B2超過率、NGSL未カバー率、NAWL率、ターゲット1900/LEAP/最強単語リストカバー率、平均文長
   - 単語帳プロファイル: 小中学語彙（`junior_high.txt`）をベースに加え、「小中学語彙+単語帳N番まで」の統合カバー率
 - `classifier.py` の `estimate_cefr()`: Claude APIでCEFRレベル（A2〜C2）+ 信頼度を推定
   - アップロード時に自動実行（`upload.py:_save_passage()`内、long_readingのみ）
@@ -147,7 +147,7 @@ fly deploy
 - `search.py`: 類似長文検索
   - embedding両方あり → コサイン類似度（ジャンル一致+0.02）
   - embedding片方なし → 特徴量ベース加重距離（cefr_score 50%, avg_sentence_length 20%, ngsl/nawl各15%）
-- 一括更新スクリプト: `backfill_text.py`（text_body+語彙）、`backfill_cefr.py`（CEFR推定）、`backfill_embedding.py`（embedding付与）
+- 一括更新スクリプト: `backfill_text.py`（text_body+語彙）、`backfill_cefr.py`（CEFR推定）、`backfill_embedding.py`（embedding付与）、`backfill_saikyou.py`（最強単語リストカバー率）
 
 ## データ管理
 - 全データ削除: `POST /api/passages/delete-all`
