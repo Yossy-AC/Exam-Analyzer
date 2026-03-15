@@ -26,6 +26,8 @@ from app.config import (
     TEXT_TYPE_LIST,
     UNIVERSITY_CLASS_LIST,
 )
+from yossy_portal_lib import base_href as _base_href, add_health_endpoint
+
 from app.auth import is_student
 from app.db import get_all_universities, get_connection, init_db
 from app.routers import dashboard, export, passages, search, universities, upload
@@ -44,11 +46,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-def _base_href(request: Request) -> str:
-    """ポータル経由の場合は X-Portal-Prefix からベースパスを返す。スタンドアロンは /"""
-    prefix = request.headers.get("X-Portal-Prefix", "")
-    return f"{prefix}/" if prefix else "/"
-
 # ルーター登録
 app.include_router(upload.router)
 app.include_router(passages.router)
@@ -56,6 +53,7 @@ app.include_router(dashboard.router)
 app.include_router(export.router)
 app.include_router(universities.router)
 app.include_router(search.router)
+add_health_endpoint(app)
 
 PUBLIC_PATHS = ("/login", "/static", "/favicon.ico")
 

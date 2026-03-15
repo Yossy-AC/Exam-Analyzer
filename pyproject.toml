@@ -19,7 +19,11 @@ dependencies = [
     "voyageai>=0.3.7",
     "google-genai>=1.0.0",
     "PyMuPDF>=1.25.0",
+    "yossy-portal-lib",
 ]
+
+[tool.uv.sources]
+yossy-portal-lib = { path = "../yossy-portal/lib" }
 
 [dependency-groups]
 dev = [
