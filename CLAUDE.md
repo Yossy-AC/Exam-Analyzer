@@ -284,3 +284,4 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 - 要確認リスト: ソート・フィルタ・列幅変更対応（ジョブ問題・データ問題テーブル）
 - Gemini 503/429対策: 5回リトライ + エクスポネンシャルバックオフ（15s→30s→60s→120s→240s）
 - main.py: `_base_href` を `yossy-portal-lib` の `base_href` に置換、`/health` エンドポイント追加
+- main.py + テンプレート: CSP nonceミドルウェア（`csp_middleware`）追加、全`<script>`タグに`nonce`属性付与
