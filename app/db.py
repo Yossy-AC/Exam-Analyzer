@@ -163,6 +163,8 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
         # 最強単語リストカバー率
         ("saikyou_coverage", "REAL"),
         ("saikyou_profile", "TEXT DEFAULT ''"),
+        # X-ray用: 各長文に出現する最強リスト語のセット
+        ("saikyou_words", "TEXT DEFAULT ''"),
     ]
     for col, typedef in migrations:
         if col not in existing:

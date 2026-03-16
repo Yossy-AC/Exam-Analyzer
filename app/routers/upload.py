@@ -25,6 +25,7 @@ from app.embedding import embed_text, encode_embedding
 from app.gemini_convert import convert_pdf_to_markdown, is_scanned_pdf, parse_filename
 from app.parser import parse_md
 from app.vocab_analyzer import analyze_vocab
+from app.xray_tokenizer import extract_saikyou_words
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -65,6 +66,14 @@ async def _save_passage(data: dict) -> None:
         except Exception as e:
             logger.warning("embedding生成失敗 %s: %s", data.get("id"), e)
 
+    # saikyou_words計算（long_readingかつ著作権省略でない場合）
+    saikyou_words_json = ""
+    if not data.get("copyright_omitted") and data.get("text_type") == "long_reading" and text_body:
+        try:
+            saikyou_words_json = json.dumps(extract_saikyou_words(text_body))
+        except Exception as e:
+            logger.warning("saikyou_words計算失敗 %s: %s", data.get("id"), e)
+
     conn = get_connection()
     try:
         # 未登録大学を universities テーブルに自動追加（FK制約対応）
@@ -94,11 +103,11 @@ async def _save_passage(data: dict) -> None:
              ngsl_uncovered_rate, nawl_rate,
              target1900_coverage, target1900_profile,
              leap_coverage, leap_profile,
-             saikyou_coverage, saikyou_profile,
+             saikyou_coverage, saikyou_profile, saikyou_words,
              embedding, copyright_omitted,
              cefr_level, cefr_score, cefr_confidence)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["id"], data["university"], data["year"], data["faculty"],
                 data["question_number"], data["passage_index"],
@@ -134,6 +143,7 @@ async def _save_passage(data: dict) -> None:
                 json.dumps(vocab.get("leap_profile", {})),
                 vocab.get("saikyou_coverage"),
                 json.dumps(vocab.get("saikyou_profile", {})),
+                saikyou_words_json,
                 embedding_blob,
                 data.get("copyright_omitted", False),
                 data.get("cefr_level", ""),

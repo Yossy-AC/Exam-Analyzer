@@ -14,7 +14,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.classifier import estimate_cefr
 from app.db import get_connection, init_db

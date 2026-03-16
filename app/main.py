@@ -30,7 +30,7 @@ from yossy_portal_lib import base_href as _base_href, add_health_endpoint
 
 from app.auth import is_student
 from app.db import get_all_universities, get_connection, init_db
-from app.routers import dashboard, export, passages, search, universities, upload
+from app.routers import dashboard, export, passages, search, universities, upload, xray
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,6 +53,7 @@ app.include_router(dashboard.router)
 app.include_router(export.router)
 app.include_router(universities.router)
 app.include_router(search.router)
+app.include_router(xray.router)
 add_health_endpoint(app)
 
 PUBLIC_PATHS = ("/login", "/static", "/favicon.ico")

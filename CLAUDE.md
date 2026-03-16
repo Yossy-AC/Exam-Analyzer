@@ -48,6 +48,7 @@ exam-analyzer/
 │   └── partials/           # HTMXフラグメント
 ├── static/style.css
 ├── data/                   # DB・アップロードファイル・一時PDF保存先
+├── tools/                  # 一括更新スクリプト（backfill_*.py, compare_search.py）
 ├── tests/                  # pytest
 ├── Dockerfile
 └── fly.toml
@@ -142,12 +143,12 @@ fly deploy
   - 入力: text_body先頭3000字 + 語彙指標
   - cefr_score: A2=1, B1=2, B2=3, C1=3.5, C2=4（数値化）
 - `embedding.py`: Voyage AI voyage-4モデル（1024次元）でtext_bodyをembedding化
-  - アップロード時に自動生成、embedding IS NULLのパッセージは`backfill_embedding.py`で一括付与
+  - アップロード時に自動生成、embedding IS NULLのパッセージは`tools/backfill_embedding.py`で一括付与
   - Tier 1: 2,000 RPM / 8M TPM、無料枠200Mトークン
 - `search.py`: 類似長文検索
   - embedding両方あり → コサイン類似度（ジャンル一致+0.02）
   - embedding片方なし → 特徴量ベース加重距離（cefr_score 50%, avg_sentence_length 20%, ngsl/nawl各15%）
-- 一括更新スクリプト: `backfill_text.py`（text_body+語彙）、`backfill_cefr.py`（CEFR推定）、`backfill_embedding.py`（embedding付与）、`backfill_saikyou.py`（最強単語リストカバー率）
+- 一括更新スクリプト: `tools/backfill_text.py`（text_body+語彙）、`tools/backfill_cefr.py`（CEFR推定）、`tools/backfill_embedding.py`（embedding付与）、`tools/backfill_saikyou.py`（最強単語リストカバー率）
 
 ## データ管理
 - 全データ削除: `POST /api/passages/delete-all`
@@ -200,6 +201,27 @@ fly deploy
 - upload.py: `共通テスト` を含む大学名に `university_class='共通テスト'` を自動設定
 - 大学並び順: 共通テスト(0) > 旧帝大(1) > 難関大(2) > ...
 
+## X-ray System（vocabulary-app連携）
+
+spaCyベースのトークナイザーでlong_reading本文を解析し、語彙カテゴリ別に分類するAPI。
+
+### 依存
+- `spacy>=3.8.0` + `en_core_web_sm` モデル（`uv pip install`で直接インストール）
+
+### モジュール
+- `app/xray_tokenizer.py`: spaCyトークナイザー。トークン分類優先順位: punctuation→junior_high→wordbook_mastered→saikyou→ngsl→propn→number→glossed→unknown。派生語フォールバック（-ly/-ness等サフィックスストリップ）
+- `app/routers/xray.py`: 3エンドポイント
+  - `GET /api/xray/passages` — long_readingメタデータ一覧
+  - `GET /api/xray/passage/{id}` — staff only、本文トークナイズ結果
+  - `POST /api/xray/analyze` — 任意テキストトークナイズ（10,000字制限）
+
+### DBカラム
+- `saikyou_words` (TEXT DEFAULT ''): 各long_readingに出現する最強リスト語のJSON配列
+- バックフィル: `tools/backfill_saikyou_words.py`
+
+### アップロード連携
+- `upload.py:_save_passage()` でsaikyou_words自動計算（`extract_saikyou_words()`使用）
+
 ## コーディング規約
 - テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`
 - 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
@@ -251,7 +273,7 @@ fly deploy
 - アップロードUI: XHR手動送信 + プログレスバー（HTMX非使用）
 - Shift-JIS→UTF-8ファイル名変換: latin-1→cp932デコードフォールバック
 - ジョブ一覧: LIMIT 300（大量アップロード対応）、ソート可能（ファイル名・状態・抽出数・開始日時）
-- アップロード時にCEFR推定も自動実行（long_readingのみ、`backfill_cefr.py` 不要に）
+- アップロード時にCEFR推定も自動実行（long_readingのみ、`tools/backfill_cefr.py` 不要に）
 - ファイル名パース: `_問題` サフィックスなしにもフォールバック対応（`parse_filename()`, `extract_university_from_filename()`）
 - MD処理時もcurrent_step表示（parsing → classifying）
 - 要確認リスト: 処理状況の下に表示（ジョブ問題→データ問題）、再投入成功時に旧警告を自動非表示

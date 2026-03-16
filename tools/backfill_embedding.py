@@ -13,7 +13,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db import get_connection, init_db
 from app.embedding import decode_embedding, embed_text, encode_embedding

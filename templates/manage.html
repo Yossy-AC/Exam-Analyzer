@@ -328,7 +328,6 @@ function submitUpload(e) {
     });
     xhr.timeout = 300000; // 5分
     const url = BASE + 'api/upload-all';
-    console.log('Upload URL:', url, 'Files:', input.files.length, 'BASE:', BASE);
     xhr.open('POST', url);
     xhr.send(formData);
     return false;
