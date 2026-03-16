@@ -78,8 +78,8 @@ async function saveUnivSettings(idx) {
     const cls = document.getElementById('cls-' + idx).value;
     const reg = document.getElementById('reg-' + idx).value;
 
-    if (!newName) { alert('大学名を入力してください'); return; }
-    if (!cls && !reg) { alert('分類または地域のいずれかを選択してください'); return; }
+    if (!newName) { showToast('大学名を入力してください', 'error'); return; }
+    if (!cls && !reg) { showToast('分類または地域のいずれかを選択してください', 'error'); return; }
 
     try {
         // 名前変更がある場合
@@ -107,7 +107,7 @@ async function saveUnivSettings(idx) {
         var badge = row.querySelector('span[style*="danger"]');
         if (badge) badge.remove();
     } catch (e) {
-        alert('保存に失敗しました: ' + e.message);
+        showToast('保存に失敗しました: ' + e.message, 'error');
     }
 }
 
@@ -121,10 +121,10 @@ async function deleteUniv(name, idx) {
         const data = await res.json();
         document.getElementById('univ-row-' + idx).remove();
         if (data.deleted_passages > 0) {
-            alert(name + ' を削除しました（関連データ ' + data.deleted_passages + '件も削除）');
+            showToast(name + ' を削除しました（関連データ ' + data.deleted_passages + '件も削除）', 'success');
         }
     } catch (e) {
-        alert('削除に失敗しました: ' + e.message);
+        showToast('削除に失敗しました: ' + e.message, 'error');
     }
 }
 </script>
