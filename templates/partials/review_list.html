@@ -102,7 +102,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 async function dismissJob(jobId, btn) {
     const row = btn.closest('tr');
     try {

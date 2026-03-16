@@ -68,7 +68,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
     const datalabelsOpt = {
         color: '#fff',

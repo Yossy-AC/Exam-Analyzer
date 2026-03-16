@@ -6,13 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>国公立大出題分析システム</title>
     <base href="{{ base_href | default('/') }}">
-    <script>
+    <script nonce="{{ request.state.csp_nonce }}">
     (function(){var t=localStorage.getItem("portal-theme");if(!t)t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)})();
     </script>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-    <script>Chart.register(ChartDataLabels);</script>
+    <script nonce="{{ request.state.csp_nonce }}" src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script nonce="{{ request.state.csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4"></script>
+    <script nonce="{{ request.state.csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script nonce="{{ request.state.csp_nonce }}">Chart.register(ChartDataLabels);</script>
     <link rel="stylesheet" href="/portal-assets/portal.css">
     <link rel="stylesheet" href="static/style.css">
 </head>
@@ -52,6 +52,6 @@
         {% block content %}{% endblock %}
     </main>
 
-    <script src="/portal-assets/portal-nav.js"></script>
+    <script nonce="{{ request.state.csp_nonce }}" src="/portal-assets/portal-nav.js"></script>
 </body>
 </html>

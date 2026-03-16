@@ -212,7 +212,7 @@
     </section>
 </div>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 const BASE = document.querySelector('base')?.href || '/';
 
 // タブ切り替え

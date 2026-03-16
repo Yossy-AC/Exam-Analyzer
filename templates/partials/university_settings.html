@@ -68,7 +68,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 const _univBase = document.querySelector('base')?.href || '/';
 
 async function saveUnivSettings(idx) {

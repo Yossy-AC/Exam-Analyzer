@@ -26,7 +26,7 @@ from app.config import (
     TEXT_TYPE_LIST,
     UNIVERSITY_CLASS_LIST,
 )
-from yossy_portal_lib import base_href as _base_href, add_health_endpoint
+from yossy_portal_lib import base_href as _base_href, csp_middleware, add_health_endpoint
 
 from app.auth import is_student
 from app.db import get_all_universities, get_connection, init_db
@@ -97,6 +97,8 @@ async def auth_middleware(request: Request, call_next):
         return RedirectResponse("/login", status_code=302)
 
     return await call_next(request)
+
+app.middleware("http")(csp_middleware)
 
 
 @app.get("/login", response_class=HTMLResponse)

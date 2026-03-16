@@ -86,7 +86,7 @@
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
     // index.html で定義済みの共通ヘルパーを使用: PALETTE, cssVar, labelColor, borderColor, doughnutConfig, isMobile
 
