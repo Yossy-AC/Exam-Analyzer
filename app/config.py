@@ -70,6 +70,17 @@ UNIVERSITY_SETTINGS: dict[str, tuple[str, str]] = {
     "共通テスト": ("共通テスト", ""),
 }
 
+# Multi-LLM英訳機能
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+XAI_API_KEY = os.getenv("XAI_API_KEY", "")
+TRANSLATE_CLAUDE_MODEL = "claude-sonnet-4-6"
+TRANSLATE_GEMINI_MODEL = "gemini-2.5-flash"
+TRANSLATE_OPENAI_MODEL = "gpt-4o"
+TRANSLATE_GROK_MODEL = "grok-3"
+TRANSLATE_INTEGRATION_MODEL = "claude-sonnet-4-6"
+TRANSLATE_MAX_TOKENS = 4096
+TRANSLATE_TIMEOUT = 120
+
 # Gemini PDF変換
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL_NAME = "gemini-2.5-pro"

@@ -30,7 +30,7 @@ from yossy_portal_lib import base_href as _base_href, csp_middleware, add_health
 
 from app.auth import is_student
 from app.db import get_all_universities, get_connection, init_db
-from app.routers import dashboard, export, passages, search, universities, upload, xray
+from app.routers import dashboard, export, passages, search, translate, universities, upload, xray
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,6 +54,7 @@ app.include_router(export.router)
 app.include_router(universities.router)
 app.include_router(search.router)
 app.include_router(xray.router)
+app.include_router(translate.router)
 add_health_endpoint(app)
 
 PUBLIC_PATHS = ("/login", "/static", "/favicon.ico")
@@ -183,6 +184,16 @@ async def index(request: Request):
             "total": total,
             "reviewed": reviewed,
         },
+    )
+
+
+@app.get("/translate", response_class=HTMLResponse)
+async def translate_page(request: Request):
+    if is_student(request):
+        return RedirectResponse(_base_href(request), status_code=302)
+    return templates.TemplateResponse(
+        "translate.html",
+        {"request": request, "base_href": _base_href(request)},
     )
 
 

@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="translate-container">
+    <h1 class="translate-title">Multi-LLM 英訳ツール</h1>
+
+    <!-- タブ -->
+    <div class="translate-tabs">
+        <button class="tab-btn active" data-tab="generate">英訳生成</button>
+        <button class="tab-btn" data-tab="review">英訳レビュー</button>
+        <button class="tab-btn" data-tab="history">履歴</button>
+    </div>
+
+    <!-- 英訳生成タブ -->
+    <div id="tab-generate" class="tab-panel active">
+        <div class="translate-form">
+            <label>日本語文</label>
+            <textarea id="gen-japanese" rows="5" placeholder="英訳したい日本語文を入力..."></textarea>
+
+            <label>出典情報（任意）</label>
+            <input id="gen-context" type="text" placeholder="例: 京大2024 大問2">
+
+            <div class="form-row">
+                <div>
+                    <label>出力形式</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="gen-format" value="1" checked> 3段階英訳</label>
+                        <label><input type="radio" name="gen-format" value="2"> ベスト+注釈</label>
+                        <label><input type="radio" name="gen-format" value="3"> 4LLM並列</label>
+                    </div>
+                </div>
+                <div>
+                    <label>大学別チューニング</label>
+                    <select id="gen-university">
+                        <option value="">なし</option>
+                        <option value="kyoto">京都大学</option>
+                        <option value="osaka">大阪大学</option>
+                        <option value="kobe">神戸大学</option>
+                        <option value="kyoto_pref">京都府立大学</option>
+                        <option value="osaka_metro">大阪公立大学</option>
+                        <option value="custom">カスタム</option>
+                    </select>
+                    <input id="gen-university-custom" type="text" placeholder="カスタム出題傾向..." style="display:none; margin-top:4px;">
+                </div>
+            </div>
+
+            <button class="btn-primary" id="btn-generate">実行</button>
+        </div>
+
+        <!-- 結果エリア -->
+        <div id="gen-result" class="result-area" style="display:none;">
+            <div class="result-header">
+                <h2>統合結果</h2>
+                <div class="result-actions">
+                    <div class="format-switch">
+                        <button class="format-btn" data-format="1">3段階</button>
+                        <button class="format-btn" data-format="2">ベスト</button>
+                        <button class="format-btn" data-format="3">並列</button>
+                    </div>
+                    <button class="btn-copy" id="btn-copy-gen">コピー</button>
+                </div>
+            </div>
+            <div id="gen-integrated" class="markdown-body"></div>
+
+            <div id="gen-meta" class="result-meta"></div>
+
+            <details class="llm-details">
+                <summary>各LLMの生出力</summary>
+                <div id="gen-raw-outputs"></div>
+            </details>
+        </div>
+    </div>
+
+    <!-- レビュータブ -->
+    <div id="tab-review" class="tab-panel">
+        <div class="translate-form">
+            <label>日本語文</label>
+            <textarea id="rev-japanese" rows="4" placeholder="原文の日本語文を入力..."></textarea>
+
+            <label>あなたの英訳</label>
+            <textarea id="rev-translation" rows="4" placeholder="レビューしたい英訳を入力..."></textarea>
+
+            <label>出典情報（任意）</label>
+            <input id="rev-context" type="text" placeholder="例: 京大2024 大問2">
+
+            <div class="form-row">
+                <div>
+                    <label>大学別チューニング</label>
+                    <select id="rev-university">
+                        <option value="">なし</option>
+                        <option value="kyoto">京都大学</option>
+                        <option value="osaka">大阪大学</option>
+                        <option value="kobe">神戸大学</option>
+                        <option value="kyoto_pref">京都府立大学</option>
+                        <option value="osaka_metro">大阪公立大学</option>
+                        <option value="custom">カスタム</option>
+                    </select>
+                    <input id="rev-university-custom" type="text" placeholder="カスタム出題傾向..." style="display:none; margin-top:4px;">
+                </div>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" id="rev-scoring"> 減点シミュレーション</label>
+                    <label><input type="checkbox" id="rev-compare" disabled title="先に英訳生成を実行してください"> 生成結果との比較</label>
+                </div>
+            </div>
+
+            <button class="btn-primary" id="btn-review">レビュー実行</button>
+        </div>
+
+        <div id="rev-result" class="result-area" style="display:none;">
+            <div class="result-header">
+                <h2>統合レビュー</h2>
+                <button class="btn-copy" id="btn-copy-rev">コピー</button>
+            </div>
+            <div id="rev-integrated" class="markdown-body"></div>
+
+            <div id="rev-meta" class="result-meta"></div>
+
+            <details class="llm-details">
+                <summary>各LLMのレビュー</summary>
+                <div id="rev-raw-outputs"></div>
+            </details>
+        </div>
+    </div>
+
+    <!-- 履歴タブ -->
+    <div id="tab-history" class="tab-panel">
+        <div id="history-list"></div>
+        <div id="history-detail" style="display:none;">
+            <button class="btn-back" id="btn-history-back">← 一覧に戻る</button>
+            <div id="history-detail-content" class="markdown-body"></div>
+        </div>
+    </div>
+
+    <!-- ローディング -->
+    <div id="loading-overlay" class="loading-overlay" style="display:none;">
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <p id="loading-stage">4LLMに並列リクエスト中...</p>
+            <div id="loading-timer" class="loading-timer">経過: 0秒</div>
+            <div class="loading-steps">
+                <div class="loading-step active" id="step-llm">
+                    <span class="step-dot"></span> 4LLM 並列呼び出し
+                </div>
+                <div class="loading-step" id="step-integrate">
+                    <span class="step-dot"></span> Claude 統合処理
+                </div>
+                <div class="loading-step" id="step-done">
+                    <span class="step-dot"></span> 完了
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ request.state.csp_nonce }}">
+const BASE = document.querySelector('base')?.getAttribute('href') || '/';
+
+// State
+let _rawTranslations = null;
+let _integratedMarkdown = null;
+let _currentFormat = 1;
+
+// ---- API helper ----
+async function apiPost(path, body) {
+    const res = await fetch(BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        redirect: 'follow',
+    });
+    // Detect auth redirect (302 → login page returns HTML)
+    const ct = res.headers.get('content-type') || '';
+    if (res.redirected || !ct.includes('application/json')) {
+        throw new Error('認証エラー: ログインし直してください');
+    }
+    if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const err = await res.json(); detail = err.detail || detail; } catch {}
+        throw new Error(detail);
+    }
+    return await res.json();
+}
+
+async function apiGet(path) {
+    const res = await fetch(BASE + path);
+    const ct = res.headers.get('content-type') || '';
+    if (res.redirected || !ct.includes('application/json')) {
+        throw new Error('認証エラー: ログインし直してください');
+    }
+    if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const err = await res.json(); detail = err.detail || detail; } catch {}
+        throw new Error(detail);
+    }
+    return await res.json();
+}
+
+// ---- Tab switching ----
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', b.textContent.includes(
+            tab === 'generate' ? '英訳生成' : tab === 'review' ? '英訳レビュー' : '履歴'
+        ));
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'history') loadHistory();
+}
+
+// ---- University custom toggle ----
+document.getElementById('gen-university').addEventListener('change', function() {
+    document.getElementById('gen-university-custom').style.display = this.value === 'custom' ? 'block' : 'none';
+});
+document.getElementById('rev-university').addEventListener('change', function() {
+    document.getElementById('rev-university-custom').style.display = this.value === 'custom' ? 'block' : 'none';
+});
+
+// ---- Loading ----
+let _loadingTimer = null;
+let _loadingStart = 0;
+
+function showLoading(stage) {
+    _loadingStart = Date.now();
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('loading-stage').textContent = stage || '4LLMに並列リクエスト中...';
+    document.getElementById('loading-timer').textContent = '経過: 0秒';
+    // Reset steps
+    document.querySelectorAll('.loading-step').forEach(s => { s.classList.remove('active', 'done'); });
+    document.getElementById('step-llm').classList.add('active');
+    // Start timer
+    if (_loadingTimer) clearInterval(_loadingTimer);
+    _loadingTimer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - _loadingStart) / 1000);
+        document.getElementById('loading-timer').textContent = `経過: ${elapsed}秒`;
+        // Estimate: after 5s, likely in integration phase
+        if (elapsed >= 5 && !document.getElementById('step-integrate').classList.contains('done')) {
+            document.getElementById('step-llm').classList.remove('active');
+            document.getElementById('step-llm').classList.add('done');
+            document.getElementById('step-integrate').classList.add('active');
+            document.getElementById('loading-stage').textContent = 'Claude 統合処理中...';
+        }
+    }, 1000);
+}
+function hideLoading() {
+    if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
+    document.querySelectorAll('.loading-step').forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
+    document.getElementById('loading-stage').textContent = '完了';
+    document.getElementById('loading-overlay').classList.remove('error');
+    setTimeout(() => {
+        document.getElementById('loading-overlay').style.display = 'none';
+    }, 300);
+}
+
+function showLoadingError(message) {
+    if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
+    const elapsed = Math.floor((Date.now() - _loadingStart) / 1000);
+    // Mark current active step as error
+    const activeStep = document.querySelector('.loading-step.active');
+    if (activeStep) {
+        activeStep.classList.remove('active');
+        activeStep.classList.add('error');
+    }
+    document.getElementById('loading-overlay').classList.add('error');
+    document.getElementById('loading-stage').textContent = 'エラー発生';
+    document.getElementById('loading-timer').textContent = `${elapsed}秒経過時にエラー`;
+    // Show error message below steps
+    let errDiv = document.getElementById('loading-error-msg');
+    if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = 'loading-error-msg';
+        errDiv.className = 'loading-error-msg';
+        document.querySelector('.loading-card').appendChild(errDiv);
+    }
+    errDiv.textContent = message;
+    // Add close button if not exists
+    let closeBtn = document.getElementById('loading-close-btn');
+    if (!closeBtn) {
+        closeBtn = document.createElement('button');
+        closeBtn.id = 'loading-close-btn';
+        closeBtn.className = 'btn-primary';
+        closeBtn.style.marginTop = '12px';
+        closeBtn.textContent = '閉じる';
+        closeBtn.onclick = () => {
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById('loading-overlay').classList.remove('error');
+            if (errDiv) errDiv.remove();
+            closeBtn.remove();
+        };
+        document.querySelector('.loading-card').appendChild(closeBtn);
+    }
+}
+
+// ---- Generate ----
+async function submitGenerate() {
+    const text = document.getElementById('gen-japanese').value.trim();
+    if (!text) { showToast('日本語文を入力してください', 'warning'); return; }
+
+    const format = parseInt(document.querySelector('input[name="gen-format"]:checked').value);
+    const university = document.getElementById('gen-university').value || null;
+    const customText = document.getElementById('gen-university-custom').value || null;
+    const context = document.getElementById('gen-context').value || null;
+
+    const btn = document.getElementById('btn-generate');
+    showLoading('4LLMに英訳を並列リクエスト中...');
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    try {
+        const data = await apiPost('api/staff/translate', {
+            japanese_text: text,
+            output_format: format,
+            context: context,
+            university: university,
+            university_custom: university === 'custom' ? customText : null,
+        });
+        _rawTranslations = data.raw_translations;
+        _integratedMarkdown = data.integrated_result;
+        _currentFormat = format;
+
+        renderGenerateResult(data);
+        hideLoading();
+
+        // Enable compare option in review tab
+        document.getElementById('rev-compare').disabled = false;
+        document.getElementById('rev-compare').title = '';
+    } catch (e) {
+        showLoadingError(e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '実行';
+    }
+}
+
+function renderGenerateResult(data) {
+    const area = document.getElementById('gen-result');
+    area.style.display = 'block';
+
+    document.getElementById('gen-integrated').innerHTML = renderMarkdown(data.integrated_result);
+
+    // Meta
+    const meta = data.metadata;
+    document.getElementById('gen-meta').innerHTML = `
+        <span>合計: ${(meta.processing_time_ms / 1000).toFixed(1)}秒</span>
+        ${Object.entries(meta.llm_times).map(([k, v]) =>
+            `<span class="llm-badge llm-${k}">${k}: ${(v / 1000).toFixed(1)}s</span>`
+        ).join('')}
+    `;
+
+    // Format buttons highlight
+    document.querySelectorAll('.format-btn').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.format) === (data.output_format || _currentFormat));
+    });
+
+    // Raw outputs
+    const rawDiv = document.getElementById('gen-raw-outputs');
+    rawDiv.innerHTML = Object.entries(data.raw_translations || _rawTranslations).map(([k, v]) => `
+        <div class="llm-raw-block">
+            <h4><span class="llm-badge llm-${k}">${k}</span></h4>
+            <div class="markdown-body">${renderMarkdown(v)}</div>
+        </div>
+    `).join('');
+}
+
+async function reformatOutput(format) {
+    if (!_rawTranslations) return;
+    if (format === _currentFormat) return;
+
+    showLoading('形式変更中（Claude統合のみ）...');
+    try {
+        const text = document.getElementById('gen-japanese').value.trim();
+        const university = document.getElementById('gen-university').value || null;
+        const customText = document.getElementById('gen-university-custom').value || null;
+
+        const data = await apiPost('api/staff/translate/reformat', {
+            japanese_text: text,
+            raw_translations: _rawTranslations,
+            output_format: format,
+            university: university,
+            university_custom: university === 'custom' ? customText : null,
+        });
+        _integratedMarkdown = data.integrated_result;
+        _currentFormat = format;
+
+        document.getElementById('gen-integrated').innerHTML = renderMarkdown(data.integrated_result);
+        document.querySelectorAll('.format-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.format) === format);
+        });
+        const meta = data.metadata;
+        if (meta) {
+            document.getElementById('gen-meta').querySelector('span').textContent =
+                `統合のみ: ${(meta.processing_time_ms / 1000).toFixed(1)}秒`;
+        }
+        hideLoading();
+    } catch (e) {
+        showLoadingError('形式変更: ' + e.message);
+    }
+}
+
+function copyResult() {
+    if (_integratedMarkdown) {
+        navigator.clipboard.writeText(_integratedMarkdown);
+        showToast('コピーしました', 'success');
+    }
+}
+
+// ---- Review ----
+let _reviewMarkdown = null;
+
+async function submitReview() {
+    const text = document.getElementById('rev-japanese').value.trim();
+    const translation = document.getElementById('rev-translation').value.trim();
+    if (!text) { showToast('日本語文を入力してください', 'warning'); return; }
+    if (!translation) { showToast('英訳を入力してください', 'warning'); return; }
+
+    const university = document.getElementById('rev-university').value || null;
+    const customText = document.getElementById('rev-university-custom').value || null;
+    const context = document.getElementById('rev-context').value || null;
+    const scoring = document.getElementById('rev-scoring').checked;
+    const compare = document.getElementById('rev-compare').checked;
+
+    const body = {
+        japanese_text: text,
+        user_translation: translation,
+        context: context,
+        university: university,
+        university_custom: university === 'custom' ? customText : null,
+        scoring_simulation: scoring,
+        compare_with_generated: compare,
+    };
+    if (compare && _rawTranslations) {
+        body.previous_translations = _rawTranslations;
+    }
+
+    const btnR = document.getElementById('btn-review');
+    showLoading('4LLMにレビューを並列リクエスト中...');
+    btnR.disabled = true;
+    btnR.textContent = '処理中...';
+    try {
+        const data = await apiPost('api/staff/review', body);
+        _reviewMarkdown = data.integrated_review;
+        renderReviewResult(data);
+        hideLoading();
+    } catch (e) {
+        showLoadingError(e.message);
+    } finally {
+        btnR.disabled = false;
+        btnR.textContent = 'レビュー実行';
+    }
+}
+
+function renderReviewResult(data) {
+    document.getElementById('rev-result').style.display = 'block';
+    document.getElementById('rev-integrated').innerHTML = renderMarkdown(data.integrated_review);
+
+    const meta = data.metadata;
+    document.getElementById('rev-meta').innerHTML = `
+        <span>合計: ${(meta.processing_time_ms / 1000).toFixed(1)}秒</span>
+        ${Object.entries(meta.llm_times).map(([k, v]) =>
+            `<span class="llm-badge llm-${k}">${k}: ${(v / 1000).toFixed(1)}s</span>`
+        ).join('')}
+    `;
+
+    const rawDiv = document.getElementById('rev-raw-outputs');
+    rawDiv.innerHTML = Object.entries(data.raw_reviews).map(([k, v]) => `
+        <div class="llm-raw-block">
+            <h4><span class="llm-badge llm-${k}">${k}</span></h4>
+            <div class="markdown-body">${renderMarkdown(v)}</div>
+        </div>
+    `).join('');
+}
+
+function copyReviewResult() {
+    if (_reviewMarkdown) {
+        navigator.clipboard.writeText(_reviewMarkdown);
+        showToast('コピーしました', 'success');
+    }
+}
+
+// ---- History ----
+async function loadHistory() {
+    const div = document.getElementById('history-list');
+    document.getElementById('history-detail').style.display = 'none';
+    div.style.display = 'block';
+
+    try {
+        const data = await apiGet('api/staff/translate/history?limit=50');
+        if (data.items.length === 0) {
+            div.innerHTML = '<p class="text-muted-sm">履歴がありません。</p>';
+            return;
+        }
+        const FORMAT_LABELS = {1: '3段階', 2: 'ベスト', 3: '並列'};
+        div.innerHTML = `
+            <table class="table">
+                <thead><tr>
+                    <th>日時</th><th>モード</th><th>日本語文</th><th>大学</th><th>形式</th><th>処理時間</th><th></th>
+                </tr></thead>
+                <tbody>
+                ${data.items.map(r => `
+                    <tr>
+                        <td class="text-muted-sm">${r.created_at}</td>
+                        <td><span class="mode-badge mode-${r.mode}">${r.mode === 'translate' ? '生成' : 'レビュー'}</span></td>
+                        <td>${escapeHtml(r.japanese_text)}</td>
+                        <td>${r.university || '-'}</td>
+                        <td>${r.output_format ? FORMAT_LABELS[r.output_format] || r.output_format : '-'}</td>
+                        <td>${(r.processing_time_ms / 1000).toFixed(1)}s</td>
+                        <td>
+                            <button class="btn-sm" data-action="view" data-id="${r.id}">詳細</button>
+                            <button class="btn-sm btn-reuse" data-action="reuse" data-id="${r.id}" data-mode="${r.mode}">再利用</button>
+                            <button class="btn-sm btn-danger-sm" data-action="delete" data-id="${r.id}">削除</button>
+                        </td>
+                    </tr>
+                `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        div.innerHTML = '<p class="text-danger">履歴の読み込みに失敗しました。</p>';
+    }
+}
+
+async function viewHistoryDetail(id) {
+    try {
+        const data = await apiGet('api/staff/translate/history/' + id);
+
+        document.getElementById('history-list').style.display = 'none';
+        const detail = document.getElementById('history-detail');
+        detail.style.display = 'block';
+
+        const raw = JSON.parse(data.raw_results_json);
+        const llmTimes = data.llm_times_json ? JSON.parse(data.llm_times_json) : {};
+
+        let html = `<h3>${data.mode === 'translate' ? '英訳生成' : '英訳レビュー'} — ${data.created_at}</h3>`;
+        html += `<p><strong>日本語文:</strong> ${escapeHtml(data.japanese_text)}</p>`;
+        if (data.user_translation) {
+            html += `<p><strong>ユーザー英訳:</strong> ${escapeHtml(data.user_translation)}</p>`;
+        }
+        if (data.context) html += `<p><strong>出典:</strong> ${escapeHtml(data.context)}</p>`;
+        html += `<p><strong>処理時間:</strong> ${(data.processing_time_ms / 1000).toFixed(1)}秒</p>`;
+
+        html += `<h4>統合結果</h4>`;
+        html += `<div class="markdown-body">${renderMarkdown(data.integrated_result)}</div>`;
+
+        html += `<details class="llm-details"><summary>各LLMの出力</summary>`;
+        for (const [k, v] of Object.entries(raw)) {
+            const t = llmTimes[k] ? ` (${(llmTimes[k] / 1000).toFixed(1)}s)` : '';
+            html += `<div class="llm-raw-block"><h4><span class="llm-badge llm-${k}">${k}${t}</span></h4>`;
+            html += `<div class="markdown-body">${renderMarkdown(v)}</div></div>`;
+        }
+        html += `</details>`;
+
+        document.getElementById('history-detail-content').innerHTML = html;
+    } catch (e) {
+        showToast('詳細の読み込みに失敗しました', 'error');
+    }
+}
+
+async function reuseHistory(id, mode) {
+    try {
+        const data = await apiGet('api/staff/translate/history/' + id);
+        if (mode === 'translate') {
+            document.getElementById('gen-japanese').value = data.japanese_text;
+            if (data.context) document.getElementById('gen-context').value = data.context;
+            switchTab('generate');
+        } else {
+            document.getElementById('rev-japanese').value = data.japanese_text;
+            document.getElementById('rev-translation').value = data.user_translation || '';
+            if (data.context) document.getElementById('rev-context').value = data.context;
+            switchTab('review');
+        }
+        showToast('入力欄にセットしました', 'success');
+    } catch (e) {
+        showToast('データの読み込みに失敗しました', 'error');
+    }
+}
+
+function backToHistoryList() {
+    document.getElementById('history-detail').style.display = 'none';
+    document.getElementById('history-list').style.display = 'block';
+}
+
+async function deleteHistory(id) {
+    if (!confirm('この履歴を削除しますか？')) return;
+    try {
+        await fetch(BASE + 'api/staff/translate/history/' + id, { method: 'DELETE', redirect: 'follow' });
+        loadHistory();
+        showToast('削除しました', 'success');
+    } catch (e) {
+        showToast('削除に失敗しました', 'error');
+    }
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+// Fallback: showToast (portal-nav.js loads after this script)
+if (typeof showToast === 'undefined') {
+    window.showToast = function(msg, type) { alert(msg); };
+}
+
+// ---- Event listeners (no inline onclick — CSP nonce blocks inline handlers) ----
+document.querySelectorAll('.tab-btn[data-tab]').forEach(b => {
+    b.addEventListener('click', () => switchTab(b.dataset.tab));
+});
+document.getElementById('btn-generate').addEventListener('click', submitGenerate);
+document.getElementById('btn-review').addEventListener('click', submitReview);
+document.getElementById('btn-copy-gen').addEventListener('click', copyResult);
+document.getElementById('btn-copy-rev').addEventListener('click', copyReviewResult);
+document.getElementById('btn-history-back').addEventListener('click', backToHistoryList);
+document.querySelectorAll('.format-btn[data-format]').forEach(b => {
+    b.addEventListener('click', () => reformatOutput(parseInt(b.dataset.format)));
+});
+// History table uses event delegation (buttons are dynamically generated)
+document.getElementById('history-list').addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.id);
+    const action = btn.dataset.action;
+    if (action === 'view') viewHistoryDetail(id);
+    else if (action === 'reuse') reuseHistory(id, btn.dataset.mode);
+    else if (action === 'delete') deleteHistory(id);
+});
+
+// Fallback: marked.js may not be loaded yet (async)
+function renderMarkdown(text) {
+    if (typeof marked !== 'undefined' && marked.parse) {
+        return marked.parse(text);
+    }
+    // Plain text fallback: escape HTML and convert newlines to <br>
+    return escapeHtml(text).replace(/\n/g, '<br>');
+}
+</script>
+<script nonce="{{ request.state.csp_nonce }}" async src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}

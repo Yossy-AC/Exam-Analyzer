@@ -21,6 +21,7 @@ dependencies = [
     "PyMuPDF>=1.25.0",
     "spacy>=3.8.0",
     "en-core-web-sm",
+    "openai>=1.0.0",
     "yossy-portal-lib",
 ]
 

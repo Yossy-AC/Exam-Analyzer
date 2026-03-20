@@ -91,6 +91,22 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (
     created_at TEXT DEFAULT (datetime('now')),
     completed_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS translations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mode TEXT NOT NULL,
+    japanese_text TEXT NOT NULL,
+    user_translation TEXT,
+    context TEXT,
+    output_format INTEGER,
+    university TEXT,
+    options_json TEXT,
+    raw_results_json TEXT NOT NULL,
+    integrated_result TEXT NOT NULL,
+    processing_time_ms INTEGER,
+    llm_times_json TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
+);
 """
 
 SEED_UNIVERSITIES = [

@@ -14,6 +14,7 @@
 - **CEFR推定**: Claude APIで長文のCEFRレベル（A2〜C2）を推定
 - **Embedding**: Voyage AI (`voyage-4`, 1024次元) でテキスト類似度検索
 - **語彙分析**: NLTK + 7語彙リスト（小中学語彙, CEFR-J, NGSL, NAWL, ターゲット1900, LEAP, 最強単語リスト）
+- **Multi-LLM英訳**: Claude, Gemini, ChatGPT, Grok の4LLM並列呼び出し + Claude統合
 - **デプロイ**: Fly.io (東京リージョン nrt)
 
 ## ディレクトリ構成
@@ -28,6 +29,9 @@ exam-analyzer/
 │   ├── classifier.py       # Claude API呼び出し（統合プロンプト、モデル自動選択）
 │   ├── gemini_convert.py   # Gemini API PDF→Markdown変換
 │   ├── prompts.py          # プロンプト定義（統合 + CEFR推定 + 旧互換）
+│   ├── llm_clients.py      # 4種LLM非同期クライアント + 並列呼び出し
+│   ├── translate_prompts.py # Multi-LLM英訳プロンプト + 大学別チューニング
+│   ├── translate_service.py # 英訳生成・reformat・レビューのビジネスロジック
 │   ├── models.py           # Pydanticモデル（ClassificationResult等）
 │   ├── vocab_analyzer.py   # 語彙分析（5リスト照合・平均文長・CEFR-J分布）
 │   ├── embedding.py        # Voyage AI embedding（voyage-4, 1024次元）
@@ -39,11 +43,13 @@ exam-analyzer/
 │       ├── dashboard.py    # 集計・グラフデータ（7エンドポイント）
 │       ├── export.py       # CSV/JSON/DBエクスポート
 │       ├── search.py       # 類似長文検索API・HTMXパーシャル
-│       └── universities.py # 大学分類・地域設定管理
+│       ├── universities.py # 大学分類・地域設定管理
+│       └── translate.py   # Multi-LLM英訳API（生成・reformat・レビュー・履歴）
 ├── templates/              # Jinja2テンプレート
 │   ├── base.html
 │   ├── index.html          # 分析画面（7タブ、モバイルは4タブ統合）
 │   ├── manage.html         # 管理画面（データ一覧・編集・削除）
+│   ├── translate.html      # Multi-LLM英訳ツール（生成・レビュー・履歴）
 │   ├── login.html
 │   └── partials/           # HTMXフラグメント
 ├── static/style.css
@@ -285,3 +291,45 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 - Gemini 503/429対策: 5回リトライ + エクスポネンシャルバックオフ（15s→30s→60s→120s→240s）
 - main.py: `_base_href` を `yossy-portal-lib` の `base_href` に置換、`/health` エンドポイント追加
 - main.py + テンプレート: CSP nonceミドルウェア（`csp_middleware`）追加、全`<script>`タグに`nonce`属性付与
+
+## Multi-LLM英訳機能（2026年3月）
+和文英訳の指導支援。4種LLM（Claude, Gemini, ChatGPT, Grok）を並列呼び出しし、Claude統合で模範解答・レビューを生成。
+
+### モード
+- **英訳生成**: 日本語文→4LLM並列英訳→Claude統合（3形式: 3段階英訳/ベスト+注釈/4LLM並列+総評）
+- **英訳レビュー**: ユーザー英訳を4LLMが評価→Claude統合レポート
+- **履歴**: 過去の生成・レビュー結果を閲覧（translationsテーブル）
+
+### APIエンドポイント（staff only）
+- `POST /api/staff/translate` — 英訳生成
+- `POST /api/staff/translate/reformat` — 形式変更（4LLM再呼び出しなし）
+- `POST /api/staff/review` — 英訳レビュー
+- `GET /api/staff/translate/history` — 履歴一覧
+- `GET /api/staff/translate/history/{id}` — 履歴詳細
+- `DELETE /api/staff/translate/history/{id}` — 履歴削除
+
+### ファイル構成
+- `app/llm_clients.py`: 4LLM非同期クライアント（Claude=anthropic, Gemini=google-genai, ChatGPT/Grok=openai）
+- `app/translate_prompts.py`: プロンプト定義 + 大学別チューニング（京大/阪大/神大/京府大/大阪公立/カスタム）
+- `app/translate_service.py`: ビジネスロジック（generate/reformat/review + DB保存）
+- `app/routers/translate.py`: APIルーター + Pydanticモデル
+- `templates/translate.html`: UI（3タブ: 英訳生成/レビュー/履歴、marked.js async CDN）
+
+### オプション
+- **大学別チューニング**: 大学固有の出題傾向をプロンプトに注入
+- **減点シミュレーション**（レビューのみ）: 大学別配点で採点を模擬
+- **生成結果との比較**（レビューのみ）: 事前の英訳生成結果とユーザー英訳を比較
+
+### 環境変数（`Dev/.env`）
+- `OPENAI_API_KEY` — ChatGPT API
+- `XAI_API_KEY` — Grok API
+- `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` — 既存
+
+### DBスキーマ
+- `translations` テーブル: id, mode, japanese_text, user_translation, context, output_format(INTEGER), university, options_json, raw_results_json, integrated_result, processing_time_ms, llm_times_json, created_at
+
+### CSP注意事項
+- CaddyのグローバルCSPとアプリのnonce付きCSPが共存するため、**インラインイベントハンドラ（onclick等）は使用不可**
+- nonce付きCSPが存在すると `'unsafe-inline'` は無視される（CSP Level 2仕様）
+- 全イベントは `addEventListener` で登録すること（translate.htmlで対応済み）
+- marked.js は `async` 属性で読み込み、未ロード時はプレーンテキストフォールバック（`renderMarkdown()`）
