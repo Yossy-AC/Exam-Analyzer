@@ -40,6 +40,14 @@ class ReformatRequest(BaseModel):
     university_custom: str | None = None
 
 
+class AskRequest(BaseModel):
+    question: str
+    japanese_text: str
+    integrated_result: str
+    raw_translations: dict[str, str]
+    conversation: list[dict[str, str]] = []  # [{role: "user"/"assistant", content: "..."}]
+
+
 class ReviewRequest(BaseModel):
     japanese_text: str
     user_translation: str
@@ -89,6 +97,25 @@ async def api_reformat(request: Request, body: ReformatRequest):
         output_format=body.output_format,
         university=body.university,
         university_custom=body.university_custom,
+    )
+    return result
+
+
+@router.post("/api/staff/translate/ask")
+async def api_ask(request: Request, body: AskRequest):
+    """統合結果に対する質問に回答する。"""
+    if is_student(request):
+        raise HTTPException(status_code=403, detail="Staff only")
+    if not body.question.strip():
+        raise HTTPException(status_code=400, detail="question is required")
+
+    from app.translate_service import ask_about_result
+    result = await ask_about_result(
+        question=body.question,
+        japanese_text=body.japanese_text,
+        integrated_result=body.integrated_result,
+        raw_translations=body.raw_translations,
+        conversation=body.conversation,
     )
     return result
 

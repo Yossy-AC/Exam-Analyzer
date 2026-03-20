@@ -57,6 +57,7 @@ tests/
 | POST | `/api/staff/translate` | 英訳生成（4LLM並列+統合） |
 | POST | `/api/staff/translate/reformat` | 形式変更（統合のみ再実行、DB保存しない） |
 | POST | `/api/staff/review` | 英訳レビュー（4LLMレビュー+統合） |
+| POST | `/api/staff/translate/ask` | 結果に対する質問（会話履歴対応） |
 | GET | `/api/staff/translate/history` | 履歴一覧（`?limit=50&offset=0`） |
 | GET | `/api/staff/translate/history/{id}` | 履歴詳細 |
 | DELETE | `/api/staff/translate/history/{id}` | 履歴削除 |
@@ -147,11 +148,16 @@ CREATE TABLE IF NOT EXISTS translations (
 
 ### State管理
 ```javascript
-let _rawTranslations = null;   // 4LLM生出力（reformat・レビュー比較用）
-let _integratedMarkdown = null; // 統合結果Markdown（コピー用）
-let _currentFormat = 1;         // 現在の出力形式
-let _reviewMarkdown = null;     // レビュー統合結果Markdown
+let _rawTranslations = null;      // 4LLM生出力（reformat・レビュー比較用）
+let _integratedMarkdown = null;   // 統合結果Markdown（コピー用）
+let _currentFormat = 1;           // 現在の出力形式
+let _reviewMarkdown = null;       // レビュー統合結果Markdown
+let _askConversation = [];        // 英訳生成の質問会話履歴
+let _revAskConversation = [];     // レビューの質問会話履歴
 ```
+
+### 質問機能
+英訳生成・レビューの両結果に対してClaudeに質問可能。原文・4LLM出力・統合結果をコンテキストとして送信し、会話履歴を保持して複数ターンの対話が可能。新規生成/レビュー実行時にリセット。Enterで送信、Shift+Enterで改行。
 
 ### CSP制約（重要）
 - **インラインイベントハンドラ（`onclick`等）は使用不可**

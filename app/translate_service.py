@@ -250,3 +250,54 @@ async def review_translation(
             "llm_times": llm_times,
         },
     }
+
+
+async def ask_about_result(
+    question: str,
+    japanese_text: str,
+    integrated_result: str,
+    raw_translations: dict[str, str],
+    conversation: list[dict[str, str]] | None = None,
+) -> dict:
+    """統合結果に対する質問にClaudeが回答する。会話履歴対応。"""
+    import anthropic
+    from app.config import ANTHROPIC_API_KEY, TRANSLATE_TIMEOUT
+
+    system = """\
+あなたは翻訳の専門家です。
+ユーザーが日本語文の英訳について質問しています。
+以下のコンテキスト（原文・4LLMの英訳・統合結果）を踏まえて、質問に的確に回答してください。
+回答はMarkdown形式で、簡潔に。"""
+
+    raw_text = "\n".join(f"### {k}\n{v}" for k, v in raw_translations.items())
+    context_msg = f"""## 原文
+{japanese_text}
+
+## 各LLMの英訳
+{raw_text}
+
+## 統合結果
+{integrated_result}
+
+---
+上記を踏まえて、以下の質問に回答してください。"""
+
+    messages = [{"role": "user", "content": context_msg}]
+
+    # 会話履歴
+    if conversation:
+        for turn in conversation:
+            messages.append({"role": turn["role"], "content": turn["content"]})
+
+    # 今回の質問
+    messages.append({"role": "user", "content": question})
+
+    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY, timeout=TRANSLATE_TIMEOUT)
+    response = await client.messages.create(
+        model=TRANSLATE_INTEGRATION_MODEL,
+        max_tokens=TRANSLATE_MAX_TOKENS,
+        temperature=0,
+        system=system,
+        messages=messages,
+    )
+    return {"answer": response.content[0].text}

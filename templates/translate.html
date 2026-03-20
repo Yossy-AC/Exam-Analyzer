@@ -68,6 +68,17 @@
                 <summary>各LLMの生出力</summary>
                 <div id="gen-raw-outputs"></div>
             </details>
+
+            <!-- 質問 -->
+            <div class="ask-section">
+                <h3>結果について質問</h3>
+                <div id="ask-history" class="ask-history"></div>
+                <div class="ask-input-row">
+                    <label>質問</label>
+                    <textarea id="ask-input" rows="3" placeholder="統合結果について質問..."></textarea>
+                    <button class="btn-primary" id="btn-ask">質問</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -119,6 +130,17 @@
                 <summary>各LLMのレビュー</summary>
                 <div id="rev-raw-outputs"></div>
             </details>
+
+            <!-- 質問 -->
+            <div class="ask-section">
+                <h3>結果について質問</h3>
+                <div id="rev-ask-history" class="ask-history"></div>
+                <div class="ask-input-row">
+                    <label>質問</label>
+                    <textarea id="rev-ask-input" rows="3" placeholder="レビュー結果について質問..."></textarea>
+                    <button class="btn-primary" id="btn-rev-ask">質問</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -137,17 +159,6 @@
             <div class="loading-spinner"></div>
             <p id="loading-stage">4LLMに並列リクエスト中...</p>
             <div id="loading-timer" class="loading-timer">経過: 0秒</div>
-            <div class="loading-steps">
-                <div class="loading-step active" id="step-llm">
-                    <span class="step-dot"></span> 4LLM 並列呼び出し
-                </div>
-                <div class="loading-step" id="step-integrate">
-                    <span class="step-dot"></span> Claude 統合処理
-                </div>
-                <div class="loading-step" id="step-done">
-                    <span class="step-dot"></span> 完了
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -224,42 +235,24 @@ function showLoading(stage) {
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('loading-stage').textContent = stage || '4LLMに並列リクエスト中...';
     document.getElementById('loading-timer').textContent = '経過: 0秒';
-    // Reset steps
-    document.querySelectorAll('.loading-step').forEach(s => { s.classList.remove('active', 'done'); });
-    document.getElementById('step-llm').classList.add('active');
-    // Start timer
     if (_loadingTimer) clearInterval(_loadingTimer);
     _loadingTimer = setInterval(() => {
         const elapsed = Math.floor((Date.now() - _loadingStart) / 1000);
         document.getElementById('loading-timer').textContent = `経過: ${elapsed}秒`;
-        // Estimate: after 5s, likely in integration phase
-        if (elapsed >= 5 && !document.getElementById('step-integrate').classList.contains('done')) {
-            document.getElementById('step-llm').classList.remove('active');
-            document.getElementById('step-llm').classList.add('done');
-            document.getElementById('step-integrate').classList.add('active');
+        if (elapsed >= 5) {
             document.getElementById('loading-stage').textContent = 'Claude 統合処理中...';
         }
     }, 1000);
 }
 function hideLoading() {
     if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
-    document.querySelectorAll('.loading-step').forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
-    document.getElementById('loading-stage').textContent = '完了';
     document.getElementById('loading-overlay').classList.remove('error');
-    setTimeout(() => {
-        document.getElementById('loading-overlay').style.display = 'none';
-    }, 300);
+    document.getElementById('loading-overlay').style.display = 'none';
 }
 
 function showLoadingError(message) {
     if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
     const elapsed = Math.floor((Date.now() - _loadingStart) / 1000);
-    // Mark current active step as error
-    const activeStep = document.querySelector('.loading-step.active');
-    if (activeStep) {
-        activeStep.classList.remove('active');
-        activeStep.classList.add('error');
-    }
     document.getElementById('loading-overlay').classList.add('error');
     document.getElementById('loading-stage').textContent = 'エラー発生';
     document.getElementById('loading-timer').textContent = `${elapsed}秒経過時にエラー`;
@@ -318,6 +311,10 @@ async function submitGenerate() {
 
         renderGenerateResult(data);
         hideLoading();
+
+        // Reset ask conversation
+        _askConversation = [];
+        document.getElementById('ask-history').innerHTML = '';
 
         // Enable compare option in review tab
         document.getElementById('rev-compare').disabled = false;
@@ -439,6 +436,8 @@ async function submitReview() {
         _reviewMarkdown = data.integrated_review;
         renderReviewResult(data);
         hideLoading();
+        _revAskConversation = [];
+        document.getElementById('rev-ask-history').innerHTML = '';
     } catch (e) {
         showLoadingError(e.message);
     } finally {
@@ -498,7 +497,7 @@ async function loadHistory() {
                     <tr>
                         <td class="text-muted-sm">${r.created_at}</td>
                         <td><span class="mode-badge mode-${r.mode}">${r.mode === 'translate' ? '生成' : 'レビュー'}</span></td>
-                        <td>${escapeHtml(r.japanese_text)}</td>
+                        <td class="cell-jp-text">${escapeHtml(r.japanese_text)}</td>
                         <td>${r.university || '-'}</td>
                         <td>${r.output_format ? FORMAT_LABELS[r.output_format] || r.output_format : '-'}</td>
                         <td>${(r.processing_time_ms / 1000).toFixed(1)}s</td>
@@ -620,6 +619,125 @@ document.getElementById('history-list').addEventListener('click', function(e) {
     if (action === 'view') viewHistoryDetail(id);
     else if (action === 'reuse') reuseHistory(id, btn.dataset.mode);
     else if (action === 'delete') deleteHistory(id);
+});
+
+// ---- Ask about result ----
+let _askConversation = [];
+
+async function submitAsk() {
+    const input = document.getElementById('ask-input');
+    const question = input.value.trim();
+    if (!question) return;
+    if (!_rawTranslations || !_integratedMarkdown) {
+        showToast('先に英訳生成を実行してください', 'warning');
+        return;
+    }
+
+    const historyDiv = document.getElementById('ask-history');
+    // Show user question
+    historyDiv.innerHTML += `<div class="ask-bubble ask-user">${escapeHtml(question)}</div>`;
+    input.value = '';
+    input.disabled = true;
+    document.getElementById('btn-ask').disabled = true;
+
+    // Show typing indicator
+    historyDiv.innerHTML += `<div class="ask-bubble ask-assistant" id="ask-typing">回答中...</div>`;
+    historyDiv.scrollTop = historyDiv.scrollHeight;
+
+    try {
+        const data = await apiPost('api/staff/translate/ask', {
+            question: question,
+            japanese_text: document.getElementById('gen-japanese').value.trim(),
+            integrated_result: _integratedMarkdown,
+            raw_translations: _rawTranslations,
+            conversation: _askConversation,
+        });
+
+        // Remove typing indicator and show answer
+        const typing = document.getElementById('ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-assistant"><div class="markdown-body">${renderMarkdown(data.answer)}</div></div>`;
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+
+        // Update conversation history
+        _askConversation.push({role: 'user', content: question});
+        _askConversation.push({role: 'assistant', content: data.answer});
+    } catch (e) {
+        const typing = document.getElementById('ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-error">エラー: ${escapeHtml(e.message)}</div>`;
+    } finally {
+        input.disabled = false;
+        document.getElementById('btn-ask').disabled = false;
+        input.focus();
+    }
+}
+
+document.getElementById('btn-ask').addEventListener('click', submitAsk);
+document.getElementById('ask-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitAsk(); }
+});
+
+// ---- Ask about review result ----
+let _revAskConversation = [];
+
+async function submitRevAsk() {
+    const input = document.getElementById('rev-ask-input');
+    const question = input.value.trim();
+    if (!question) return;
+    if (!_reviewMarkdown) {
+        showToast('先にレビューを実行してください', 'warning');
+        return;
+    }
+
+    const historyDiv = document.getElementById('rev-ask-history');
+    historyDiv.innerHTML += `<div class="ask-bubble ask-user">${escapeHtml(question)}</div>`;
+    input.value = '';
+    input.disabled = true;
+    document.getElementById('btn-rev-ask').disabled = true;
+    historyDiv.innerHTML += `<div class="ask-bubble ask-assistant" id="rev-ask-typing">回答中...</div>`;
+    historyDiv.scrollTop = historyDiv.scrollHeight;
+
+    // Build raw_translations from raw_reviews (use whatever is available)
+    const rawData = {};
+    document.querySelectorAll('#rev-raw-outputs .llm-raw-block').forEach(block => {
+        const badge = block.querySelector('.llm-badge');
+        if (badge) {
+            const name = badge.textContent.trim();
+            rawData[name] = block.querySelector('.markdown-body')?.textContent || '';
+        }
+    });
+
+    try {
+        const data = await apiPost('api/staff/translate/ask', {
+            question: question,
+            japanese_text: document.getElementById('rev-japanese').value.trim(),
+            integrated_result: _reviewMarkdown,
+            raw_translations: rawData,
+            conversation: _revAskConversation,
+        });
+
+        const typing = document.getElementById('rev-ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-assistant"><div class="markdown-body">${renderMarkdown(data.answer)}</div></div>`;
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+
+        _revAskConversation.push({role: 'user', content: question});
+        _revAskConversation.push({role: 'assistant', content: data.answer});
+    } catch (e) {
+        const typing = document.getElementById('rev-ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-error">エラー: ${escapeHtml(e.message)}</div>`;
+    } finally {
+        input.disabled = false;
+        document.getElementById('btn-rev-ask').disabled = false;
+        input.focus();
+    }
+}
+
+document.getElementById('btn-rev-ask').addEventListener('click', submitRevAsk);
+document.getElementById('rev-ask-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitRevAsk(); }
 });
 
 // Fallback: marked.js may not be loaded yet (async)

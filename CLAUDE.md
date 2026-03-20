@@ -301,9 +301,10 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 - **履歴**: 過去の生成・レビュー結果を閲覧（translationsテーブル）
 
 ### APIエンドポイント（staff only）
-- `POST /api/staff/translate` — 英訳生成
+- `POST /api/staff/translate` — 英訳生成（各LLM 2訳出力）
 - `POST /api/staff/translate/reformat` — 形式変更（4LLM再呼び出しなし）
 - `POST /api/staff/review` — 英訳レビュー
+- `POST /api/staff/translate/ask` — 結果に対する質問（会話履歴対応）
 - `GET /api/staff/translate/history` — 履歴一覧
 - `GET /api/staff/translate/history/{id}` — 履歴詳細
 - `DELETE /api/staff/translate/history/{id}` — 履歴削除
