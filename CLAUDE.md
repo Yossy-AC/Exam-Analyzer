@@ -296,14 +296,17 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 和文英訳の指導支援。4種LLM（Claude, Gemini, ChatGPT, Grok）を並列呼び出しし、Claude統合で模範解答・レビューを生成。
 
 ### モード
-- **英訳生成**: 日本語文→4LLM並列英訳→Claude統合（3形式: 3段階英訳/ベスト+注釈/4LLM並列+総評）
+- **英訳生成**: 日本語文→4LLM並列英訳（各2訳）→Claude統合（3形式: 3段階英訳/ベスト+注釈/4LLM並列+総評）
 - **英訳レビュー**: ユーザー英訳を4LLMが評価→Claude統合レポート
-- **履歴**: 過去の生成・レビュー結果を閲覧（translationsテーブル）
+- **バッチ英訳**: 複数文を一括入力→4LLMリスト一括送信→Claude統合（ディレクティブ: /force /ban /hint）
+- **履歴**: 過去の生成・レビュー・バッチ結果を閲覧（translationsテーブル）
+- **質問機能**: 英訳生成・レビューの結果に対してClaudeに質問（会話履歴対応）
 
 ### APIエンドポイント（staff only）
 - `POST /api/staff/translate` — 英訳生成（各LLM 2訳出力）
 - `POST /api/staff/translate/reformat` — 形式変更（4LLM再呼び出しなし）
 - `POST /api/staff/review` — 英訳レビュー
+- `POST /api/staff/translate/batch` — バッチ英訳（複数文一括）
 - `POST /api/staff/translate/ask` — 結果に対する質問（会話履歴対応）
 - `GET /api/staff/translate/history` — 履歴一覧
 - `GET /api/staff/translate/history/{id}` — 履歴詳細
@@ -311,10 +314,11 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 
 ### ファイル構成
 - `app/llm_clients.py`: 4LLM非同期クライアント（Claude=anthropic, Gemini=google-genai, ChatGPT/Grok=openai）
-- `app/translate_prompts.py`: プロンプト定義 + 大学別チューニング（京大/阪大/神大/京府大/大阪公立/カスタム）
-- `app/translate_service.py`: ビジネスロジック（generate/reformat/review + DB保存）
+- `app/translate_prompts.py`: プロンプト定義 + 大学別チューニング + バッチ用プロンプト
+- `app/translate_service.py`: ビジネスロジック（generate/reformat/review/batch/ask + DB保存 + パーサー）
 - `app/routers/translate.py`: APIルーター + Pydanticモデル
-- `templates/translate.html`: UI（3タブ: 英訳生成/レビュー/履歴、marked.js async CDN）
+- `templates/translate.html`: UI（4タブ: 英訳生成/レビュー/バッチ/履歴、marked.js async CDN）
+- `TRANSLATE.md`: 英訳機能の独立ドキュメント（補修時参照用）
 
 ### オプション
 - **大学別チューニング**: 大学固有の出題傾向をプロンプトに注入
@@ -327,7 +331,12 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 - `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` — 既存
 
 ### DBスキーマ
-- `translations` テーブル: id, mode, japanese_text, user_translation, context, output_format(INTEGER), university, options_json, raw_results_json, integrated_result, processing_time_ms, llm_times_json, created_at
+- `translations` テーブル: id, mode(`translate`/`review`/`batch`), japanese_text, user_translation, context, output_format(INTEGER), university, options_json, raw_results_json, integrated_result, processing_time_ms, llm_times_json, created_at
+
+### 入試文脈の扱い
+- 統合プロンプト: 入試文脈を全て除去（英文品質で評価に徹する）
+- 個別LLM: 「学習者が再現可能な語彙・構文」は難易度制御として維持
+- 減点シミュレーション: 例外として入試文脈を維持（機能目的が入試採点模擬）
 
 ### CSP注意事項
 - CaddyのグローバルCSPとアプリのnonce付きCSPが共存するため、**インラインイベントハンドラ（onclick等）は使用不可**
