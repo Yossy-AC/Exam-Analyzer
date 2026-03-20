@@ -8,6 +8,7 @@
     <div class="translate-tabs">
         <button class="tab-btn active" data-tab="generate">英訳生成</button>
         <button class="tab-btn" data-tab="review">英訳レビュー</button>
+        <button class="tab-btn" data-tab="batch">バッチ</button>
         <button class="tab-btn" data-tab="history">履歴</button>
     </div>
 
@@ -144,6 +145,42 @@
         </div>
     </div>
 
+    <!-- バッチタブ -->
+    <div id="tab-batch" class="tab-panel">
+        <div class="translate-form">
+            <label>日本語文リスト（1行1文、行頭番号は任意）</label>
+            <textarea id="batch-input" rows="12" placeholder="1. 私は正しいと思うことをした&#10;2. 意味もよく知らない言葉は使わないほうがよい&#10;3. 彼は私と性格が正反対だ /force to&#10;4. 幾つかの短い道は全部木に覆われていた /force little /ban few"></textarea>
+            <p class="text-muted-sm">ディレクティブ: <code>/force 語句</code>（必須使用）<code>/ban 語句</code>（使用禁止）<code>/hint テキスト</code>（ヒント）を行末に追加可</p>
+
+            <div class="form-row">
+                <div>
+                    <label>大学別チューニング</label>
+                    <select id="batch-university">
+                        <option value="">なし</option>
+                        <option value="kyoto">京都大学</option>
+                        <option value="osaka">大阪大学</option>
+                        <option value="kobe">神戸大学</option>
+                        <option value="kyoto_pref">京都府立大学</option>
+                        <option value="osaka_metro">大阪公立大学</option>
+                        <option value="custom">カスタム</option>
+                    </select>
+                    <input id="batch-university-custom" type="text" placeholder="カスタム出題傾向..." style="display:none; margin-top:4px;">
+                </div>
+            </div>
+
+            <button class="btn-primary" id="btn-batch">バッチ実行</button>
+        </div>
+
+        <!-- バッチ結果 -->
+        <div id="batch-result" class="result-area" style="display:none;">
+            <div class="result-header">
+                <h2>バッチ結果</h2>
+                <div id="batch-meta" class="result-meta"></div>
+            </div>
+            <div id="batch-items"></div>
+        </div>
+    </div>
+
     <!-- 履歴タブ -->
     <div id="tab-history" class="tab-panel">
         <div id="history-list"></div>
@@ -208,10 +245,8 @@ async function apiGet(path) {
 
 // ---- Tab switching ----
 function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', b.textContent.includes(
-            tab === 'generate' ? '英訳生成' : tab === 'review' ? '英訳レビュー' : '履歴'
-        ));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
     });
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
@@ -496,7 +531,7 @@ async function loadHistory() {
                 ${data.items.map(r => `
                     <tr>
                         <td class="text-muted-sm">${r.created_at}</td>
-                        <td><span class="mode-badge mode-${r.mode}">${r.mode === 'translate' ? '生成' : 'レビュー'}</span></td>
+                        <td><span class="mode-badge mode-${r.mode}">${r.mode === 'translate' ? '生成' : r.mode === 'batch' ? 'バッチ' : 'レビュー'}</span></td>
                         <td class="cell-jp-text">${escapeHtml(r.japanese_text)}</td>
                         <td>${r.university || '-'}</td>
                         <td>${r.output_format ? FORMAT_LABELS[r.output_format] || r.output_format : '-'}</td>
@@ -527,7 +562,8 @@ async function viewHistoryDetail(id) {
         const raw = JSON.parse(data.raw_results_json);
         const llmTimes = data.llm_times_json ? JSON.parse(data.llm_times_json) : {};
 
-        let html = `<h3>${data.mode === 'translate' ? '英訳生成' : '英訳レビュー'} — ${data.created_at}</h3>`;
+        const modeLabel = data.mode === 'translate' ? '英訳生成' : data.mode === 'batch' ? 'バッチ英訳' : '英訳レビュー';
+        let html = `<h3>${modeLabel} — ${data.created_at}</h3>`;
         html += `<p><strong>日本語文:</strong> ${escapeHtml(data.japanese_text)}</p>`;
         if (data.user_translation) {
             html += `<p><strong>ユーザー英訳:</strong> ${escapeHtml(data.user_translation)}</p>`;
@@ -598,12 +634,114 @@ if (typeof showToast === 'undefined') {
     window.showToast = function(msg, type) { alert(msg); };
 }
 
+// ---- Batch ----
+document.getElementById('batch-university').addEventListener('change', function() {
+    document.getElementById('batch-university-custom').style.display = this.value === 'custom' ? 'block' : 'none';
+});
+
+async function submitBatch() {
+    const text = document.getElementById('batch-input').value.trim();
+    if (!text) { showToast('日本語文を入力してください', 'warning'); return; }
+
+    const university = document.getElementById('batch-university').value || null;
+    const customText = document.getElementById('batch-university-custom').value || null;
+    const btn = document.getElementById('btn-batch');
+
+    showLoading('バッチ英訳: 4LLMに一括リクエスト中...');
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    try {
+        const data = await apiPost('api/staff/translate/batch', {
+            input_text: text,
+            university: university,
+            university_custom: university === 'custom' ? customText : null,
+        });
+        renderBatchResult(data);
+        hideLoading();
+    } catch (e) {
+        showLoadingError(e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'バッチ実行';
+    }
+}
+
+function renderBatchResult(data) {
+    const area = document.getElementById('batch-result');
+    area.style.display = 'block';
+
+    const meta = data.metadata;
+    document.getElementById('batch-meta').innerHTML = `
+        <span>全${meta.total_items}文 / ${(meta.processing_time_ms / 1000).toFixed(1)}秒</span>
+        ${Object.entries(meta.llm_times).map(([k, v]) =>
+            `<span class="llm-badge llm-${k}">${k}: ${(v / 1000).toFixed(1)}s</span>`
+        ).join('')}
+    `;
+
+    const itemsDiv = document.getElementById('batch-items');
+    itemsDiv.innerHTML = data.items.map(item => {
+        const directives = [];
+        if (item.force_words.length) directives.push(`<span class="directive-badge force">/force ${escapeHtml(item.force_words.join(', '))}</span>`);
+        if (item.ban_words.length) directives.push(`<span class="directive-badge ban">/ban ${escapeHtml(item.ban_words.join(', '))}</span>`);
+        if (item.hint) directives.push(`<span class="directive-badge hint">/hint ${escapeHtml(item.hint)}</span>`);
+
+        return `
+        <div class="batch-item">
+            <div class="batch-item-header" data-batch-toggle="${item.number}">
+                <span class="batch-num">【${item.number}】</span>
+                <div class="batch-item-content">
+                    <div class="batch-jp">${escapeHtml(item.japanese_text)} ${directives.join(' ')}</div>
+                    <div class="batch-best">${escapeHtml(item.best_translation)}</div>
+                </div>
+                <span class="batch-expand-icon">▶</span>
+            </div>
+            <div class="batch-detail" id="batch-detail-${item.number}" style="display:none;">
+                <div class="markdown-body">${renderMarkdown(item.integrated_detail)}</div>
+                <details class="llm-details">
+                    <summary>4LLM個別出力</summary>
+                    ${Object.entries(item.raw_translations).map(([k, v]) => `
+                        <div class="llm-raw-block">
+                            <h4><span class="llm-badge llm-${k}">${k}</span></h4>
+                            <div class="markdown-body">${v ? renderMarkdown(v) : '<em>（該当セクションなし）</em>'}</div>
+                        </div>
+                    `).join('')}
+                </details>
+                <button class="btn-sm btn-reuse" data-action="open-single" data-text="${escapeHtml(item.japanese_text)}">単文モードで開く</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 // ---- Event listeners (no inline onclick — CSP nonce blocks inline handlers) ----
 document.querySelectorAll('.tab-btn[data-tab]').forEach(b => {
     b.addEventListener('click', () => switchTab(b.dataset.tab));
 });
 document.getElementById('btn-generate').addEventListener('click', submitGenerate);
 document.getElementById('btn-review').addEventListener('click', submitReview);
+document.getElementById('btn-batch').addEventListener('click', submitBatch);
+// Batch: accordion toggle + single mode (event delegation)
+document.getElementById('batch-items').addEventListener('click', function(e) {
+    // Accordion toggle
+    const header = e.target.closest('[data-batch-toggle]');
+    if (header) {
+        const num = header.dataset.batchToggle;
+        const detail = document.getElementById('batch-detail-' + num);
+        const icon = header.querySelector('.batch-expand-icon');
+        if (detail) {
+            const open = detail.style.display !== 'none';
+            detail.style.display = open ? 'none' : 'block';
+            if (icon) icon.textContent = open ? '▶' : '▼';
+        }
+        return;
+    }
+    // Single mode button
+    const singleBtn = e.target.closest('[data-action="open-single"]');
+    if (singleBtn) {
+        document.getElementById('gen-japanese').value = singleBtn.dataset.text;
+        switchTab('generate');
+        showToast('入力欄にセットしました', 'success');
+    }
+});
 document.getElementById('btn-copy-gen').addEventListener('click', copyResult);
 document.getElementById('btn-copy-rev').addEventListener('click', copyReviewResult);
 document.getElementById('btn-history-back').addEventListener('click', backToHistoryList);

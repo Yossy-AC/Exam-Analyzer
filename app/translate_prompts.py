@@ -428,6 +428,106 @@ def build_compare_fragment(previous_translations: dict[str, str]) -> str:
     )
 
 
+# ---------------------------------------------------------------------------
+# バッチ英訳
+# ---------------------------------------------------------------------------
+
+BATCH_TRANSLATE_USER_TEMPLATE = """\
+以下の日本語文リストを、それぞれ英訳してください。
+
+## ルール
+- 各文につき、訳A（直訳寄り）と訳B（意訳寄り）の2訳を出力
+- ※必須語句 がある文は、指定された語句を必ず使用すること
+- ※禁止語句 がある文は、指定された語句を絶対に使用しないこと
+- ※ヒント がある文は、その指示を考慮して英訳すること
+- 文番号を維持して出力すること
+- 解説・補足・注釈は不要
+
+## 出力形式
+各文について以下の形式で出力:
+
+【1】
+訳A: ...
+訳B: ...
+
+【2】
+訳A: ...
+訳B: ...
+
+## 日本語文リスト
+{numbered_list}
+"""
+
+BATCH_INTEGRATE_SYSTEM_PROMPT = """\
+あなたは英日翻訳の専門家です。
+4種のLLMがそれぞれ日本語文リストを英訳しました。各文について、4LLMの訳を比較・統合し、最善の英訳を1つ合成してください。
+さらに、各LLMの訳を踏まえた上で、より良い表現がないか独自に検討してください。"""
+
+BATCH_INTEGRATE_USER_TEMPLATE = """\
+## 日本語文リスト
+{numbered_list}
+
+## 各LLMの英訳
+
+### Claude
+{claude_result}
+
+### Gemini
+{gemini_result}
+
+### ChatGPT
+{chatgpt_result}
+
+### Grok
+{grok_result}
+
+## 出力形式
+各文について以下の形式で出力:
+
+【1】
+ベスト英訳: （4LLMの最善表現を統合した1訳。制約がある場合は厳守）
+採用ポイント: （どのLLMのどの表現を採用したか、簡潔に1行。改善があればその旨）
+注意点: （文法・語彙・構文で注目すべき点。なければ省略可）
+
+【2】
+ベスト英訳: ...
+...
+{constraints}"""
+
+
+def build_batch_numbered_list(items: list) -> str:
+    """BatchItemリストから【N】形式の番号付きリストを生成する。"""
+    lines = []
+    for item in items:
+        line = f"【{item.number}】{item.japanese_text}"
+        if item.force_words:
+            line += f" ※必須語句: {', '.join(item.force_words)}"
+        if item.ban_words:
+            line += f" ※禁止語句: {', '.join(item.ban_words)}"
+        if item.hint:
+            line += f" ※ヒント: {item.hint}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def build_batch_constraints(items: list) -> str:
+    """制約があるアイテムの一覧を生成する（統合プロンプト末尾用）。"""
+    constraints = []
+    for item in items:
+        parts = []
+        if item.force_words:
+            parts.append(f'必須語句: "{", ".join(item.force_words)}"')
+        if item.ban_words:
+            parts.append(f'禁止語句: "{", ".join(item.ban_words)}"')
+        if item.hint:
+            parts.append(f"ヒント: {item.hint}")
+        if parts:
+            constraints.append(f"- 【{item.number}】{' / '.join(parts)}")
+    if not constraints:
+        return ""
+    return "\n\n## 制約事項（厳守）\n" + "\n".join(constraints)
+
+
 # 出力形式ラベル
 OUTPUT_FORMAT_LABELS: dict[int, str] = {
     1: "3段階英訳統合",

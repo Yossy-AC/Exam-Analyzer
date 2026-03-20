@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from app.auth import is_student
 from app.db import get_connection
 from app.translate_service import (
+    generate_batch,
     generate_translations,
     reformat_translations,
     review_translation,
@@ -46,6 +47,12 @@ class AskRequest(BaseModel):
     integrated_result: str
     raw_translations: dict[str, str]
     conversation: list[dict[str, str]] = []  # [{role: "user"/"assistant", content: "..."}]
+
+
+class BatchRequest(BaseModel):
+    input_text: str
+    university: str | None = None
+    university_custom: str | None = None
 
 
 class ReviewRequest(BaseModel):
@@ -117,6 +124,24 @@ async def api_ask(request: Request, body: AskRequest):
         raw_translations=body.raw_translations,
         conversation=body.conversation,
     )
+    return result
+
+
+@router.post("/api/staff/translate/batch")
+async def api_batch(request: Request, body: BatchRequest):
+    """バッチ英訳: 複数文を4LLM一括+Claude統合。"""
+    if is_student(request):
+        raise HTTPException(status_code=403, detail="Staff only")
+    if not body.input_text.strip():
+        raise HTTPException(status_code=400, detail="input_text is required")
+
+    result = await generate_batch(
+        input_text=body.input_text,
+        university=body.university,
+        university_custom=body.university_custom,
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
     return result
 
 

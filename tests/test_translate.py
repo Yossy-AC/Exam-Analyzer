@@ -181,3 +181,77 @@ class TestCallAllLlmsPartialFailure:
                 assert "RuntimeError" in results["gemini"]
 
         asyncio.run(_test())
+
+
+# ---------------------------------------------------------------------------
+# バッチ入力パーサーテスト
+# ---------------------------------------------------------------------------
+
+class TestParseBatchInput:
+    def test_numbered_lines(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("1. 私は正しいことをした\n2. 言葉は使わない")
+        assert len(items) == 2
+        assert items[0].number == 1
+        assert items[1].number == 2
+        assert "正しい" in items[0].japanese_text
+
+    def test_auto_numbering(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("私は正しい\n言葉は使わない")
+        assert items[0].number == 1
+        assert items[1].number == 2
+
+    def test_force_directive(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("1. 彼は私と正反対だ /force to")
+        assert items[0].force_words == ["to"]
+        assert "正反対" in items[0].japanese_text
+
+    def test_ban_directive(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("1. 短い道 /ban few")
+        assert items[0].ban_words == ["few"]
+
+    def test_hint_directive(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("1. 何か言おうと /hint 譲歩の構文を使うこと")
+        assert items[0].hint == "譲歩の構文を使うこと"
+
+    def test_multiple_directives(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("4. 短い道 /force little /ban few")
+        assert items[0].force_words == ["little"]
+        assert items[0].ban_words == ["few"]
+        assert "短い道" in items[0].japanese_text
+
+    def test_skip_empty_lines(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("1. あ\n\n2. い\n\n")
+        assert len(items) == 2
+
+    def test_force_multiple_words(self):
+        from app.translate_service import parse_batch_input
+        items = parse_batch_input("1. テスト /force to, in order to")
+        assert items[0].force_words == ["to", "in order to"]
+
+
+class TestParseNumberedSections:
+    def test_basic(self):
+        from app.translate_service import parse_numbered_sections
+        text = "【1】\nHello\n【2】\nWorld"
+        sections = parse_numbered_sections(text)
+        assert sections[1] == "Hello"
+        assert sections[2] == "World"
+
+    def test_multiline(self):
+        from app.translate_service import parse_numbered_sections
+        text = "【1】\n訳A: Hello\n訳B: Hi\n【2】\n訳A: World"
+        sections = parse_numbered_sections(text)
+        assert "訳A: Hello" in sections[1]
+        assert "訳B: Hi" in sections[1]
+
+    def test_empty(self):
+        from app.translate_service import parse_numbered_sections
+        sections = parse_numbered_sections("no sections here")
+        assert sections == {}

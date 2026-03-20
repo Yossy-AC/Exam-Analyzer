@@ -775,6 +775,22 @@ tr.copyright-omitted:hover { background: color-mix(in srgb, var(--muted) 25%, va
 
 .cell-jp-text { max-width: 280px; word-break: break-all; }
 
+/* Batch */
+.batch-item { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; }
+.batch-item-header { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; cursor: pointer; }
+.batch-item-header:hover { background: var(--bg-subtle); }
+.batch-num { font-weight: 700; color: var(--primary); white-space: nowrap; min-width: 36px; }
+.batch-item-content { flex: 1; min-width: 0; }
+.batch-jp { font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+.batch-best { font-size: 0.9rem; font-weight: 500; }
+.batch-expand-icon { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+.batch-detail { padding: 12px 16px; border-top: 1px solid var(--border); background: var(--bg-subtle); }
+.directive-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; margin-left: 4px; }
+.directive-badge.force { background: #2563eb; color: #fff; }
+.directive-badge.ban { background: #dc2626; color: #fff; }
+.directive-badge.hint { background: #f59e0b; color: #fff; }
+.mode-batch { background: #7c3aed; color: #fff; }
+
 /* Ask section */
 .ask-section { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
 .ask-section h3 { font-size: 0.95rem; margin: 0 0 10px; }
