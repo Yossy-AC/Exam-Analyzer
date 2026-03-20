@@ -69,7 +69,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 
 # テスト実行
-python -m pytest tests/ -v
+uv run python -m pytest tests/ -v
 
 # Fly.ioデプロイ
 fly deploy
@@ -229,7 +229,7 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 - `upload.py:_save_passage()` でsaikyou_words自動計算（`extract_saikyou_words()`使用）
 
 ## コーディング規約
-- テスト実行は変更後に必ず行う: `python -m pytest tests/ -v`
+- テスト実行は変更後に必ず行う: `uv run python -m pytest tests/ -v`
 - 入試問題MDデータは `data/input_md/` に配置（gitには含めない）
 - DBスキーマ変更時は `db.py` の `SCHEMA_SQL` を更新し、`init_db()` の冪等性を維持
 
@@ -296,17 +296,23 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 和文英訳の指導支援。4種LLM（Claude, Gemini, ChatGPT, Grok）を並列呼び出しし、Claude統合で模範解答・レビューを生成。
 
 ### モード
-- **英訳生成**: 日本語文→4LLM並列英訳（各2訳）→Claude統合（3形式: 3段階英訳/ベスト+注釈/4LLM並列+総評）
-- **英訳レビュー**: ユーザー英訳を4LLMが評価→Claude統合レポート
+- **英訳生成**: 日本語文→4LLM並列英訳（各1訳）→Claude統合・中央値抽出（3形式: 標準訳/許容範囲/ベスト英訳+注釈）
+  - サンプリングモード: 標準（4サンプル）/ 拡張（4LLM×3温度=12サンプル）
+- **英訳レビュー**: ユーザー英訳を4LLMが評価→Claude統合レポート（シンプル、オプションなし）
 - **バッチ英訳**: 複数文を一括入力→4LLMリスト一括送信→Claude統合（ディレクティブ: /force /ban /hint）
-- **履歴**: 過去の生成・レビュー・バッチ結果を閲覧（translationsテーブル）
-- **質問機能**: 英訳生成・レビューの結果に対してClaudeに質問（会話履歴対応）
+  - 結果表示: 日本語文→各LLM出力(Claude→ChatGPT→Gemini→Grok)→ベスト解答→選定理由
+- **バッチレビュー**: 複数の「日本語文+英訳」ペアを一括入力→4LLMレビュー→Claude統合
+  - 入力: 番号付き日本語文+続く英語行（複数英訳可）、英訳なしペアは自動除外
+  - 結果表示: アコーディオン一覧（評価バッジ[A/B/C/D]付き）→詳細展開→4LLM個別レビュー
+- **履歴**: 過去の生成・レビュー・バッチ・バッチレビュー結果を閲覧（translationsテーブル、auto layout + 日本語文ellipsis）
+- **質問機能**: 英訳生成・レビュー・バッチ・バッチレビューの結果に対してClaudeに質問（会話履歴対応、全モード標準搭載）
 
 ### APIエンドポイント（staff only）
-- `POST /api/staff/translate` — 英訳生成（各LLM 2訳出力）
+- `POST /api/staff/translate` — 英訳生成（各LLM 1訳出力、sampling_mode対応）
 - `POST /api/staff/translate/reformat` — 形式変更（4LLM再呼び出しなし）
 - `POST /api/staff/review` — 英訳レビュー
 - `POST /api/staff/translate/batch` — バッチ英訳（複数文一括）
+- `POST /api/staff/translate/batch-review` — バッチレビュー（複数ペア一括）
 - `POST /api/staff/translate/ask` — 結果に対する質問（会話履歴対応）
 - `GET /api/staff/translate/history` — 履歴一覧
 - `GET /api/staff/translate/history/{id}` — 履歴詳細
@@ -314,16 +320,16 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 
 ### ファイル構成
 - `app/llm_clients.py`: 4LLM非同期クライアント（Claude=anthropic, Gemini=google-genai, ChatGPT/Grok=openai）
-- `app/translate_prompts.py`: プロンプト定義 + 大学別チューニング + バッチ用プロンプト
-- `app/translate_service.py`: ビジネスロジック（generate/reformat/review/batch/ask + DB保存 + パーサー）
+- `app/translate_prompts.py`: プロンプト定義 + バッチ用プロンプト（大学別チューニング等はバックエンドに残存、UIからは非公開）
+- `app/translate_service.py`: ビジネスロジック（generate/reformat/review/batch/batch_review/ask + DB保存 + パーサー）
 - `app/routers/translate.py`: APIルーター + Pydanticモデル
-- `templates/translate.html`: UI（4タブ: 英訳生成/レビュー/バッチ/履歴、marked.js async CDN）
+- `templates/translate.html`: UI（5タブ: 英訳生成/レビュー/バッチ/バッチレビュー/履歴、marked.js async CDN）
 - `TRANSLATE.md`: 英訳機能の独立ドキュメント（補修時参照用）
 
-### オプション
-- **大学別チューニング**: 大学固有の出題傾向をプロンプトに注入
-- **減点シミュレーション**（レビューのみ）: 大学別配点で採点を模擬
-- **生成結果との比較**（レビューのみ）: 事前の英訳生成結果とユーザー英訳を比較
+### UIから削除した機能（バックエンドAPIパラメータとしては残存）
+- **大学別チューニング**: 全タブから削除
+- **減点シミュレーション**: レビュータブから削除
+- **生成結果との比較**: レビュータブから削除
 
 ### 環境変数（`Dev/.env`）
 - `OPENAI_API_KEY` — ChatGPT API
@@ -331,12 +337,12 @@ spaCyベースのトークナイザーでlong_reading本文を解析し、語彙
 - `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` — 既存
 
 ### DBスキーマ
-- `translations` テーブル: id, mode(`translate`/`review`/`batch`), japanese_text, user_translation, context, output_format(INTEGER), university, options_json, raw_results_json, integrated_result, processing_time_ms, llm_times_json, created_at
+- `translations` テーブル: id, mode(`translate`/`review`/`batch`/`batch_review`), japanese_text, user_translation, context, output_format(INTEGER), university, options_json, raw_results_json, integrated_result, processing_time_ms, llm_times_json, created_at
 
 ### 入試文脈の扱い
 - 統合プロンプト: 入試文脈を全て除去（英文品質で評価に徹する）
 - 個別LLM: 「学習者が再現可能な語彙・構文」は難易度制御として維持
-- 減点シミュレーション: 例外として入試文脈を維持（機能目的が入試採点模擬）
+- 大学別チューニング・減点シミュレーション: バックエンドに残存（UIからは非公開、APIパラメータとして互換性維持）
 
 ### CSP注意事項
 - CaddyのグローバルCSPとアプリのnonce付きCSPが共存するため、**インラインイベントハンドラ（onclick等）は使用不可**

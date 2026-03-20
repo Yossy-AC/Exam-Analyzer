@@ -9,6 +9,7 @@
         <button class="tab-btn active" data-tab="generate">英訳生成</button>
         <button class="tab-btn" data-tab="review">英訳レビュー</button>
         <button class="tab-btn" data-tab="batch">バッチ</button>
+        <button class="tab-btn" data-tab="batch-review">バッチレビュー</button>
         <button class="tab-btn" data-tab="history">履歴</button>
     </div>
 
@@ -25,25 +26,24 @@
                 <div>
                     <label>出力形式</label>
                     <div class="radio-group">
-                        <label><input type="radio" name="gen-format" value="1" checked> 3段階英訳</label>
-                        <label><input type="radio" name="gen-format" value="2"> ベスト+注釈</label>
-                        <label><input type="radio" name="gen-format" value="3"> 4LLM並列</label>
+                        <label><input type="radio" name="gen-format" value="1" checked> 標準訳</label>
+                        <label><input type="radio" name="gen-format" value="2"> 許容範囲</label>
+                        <label><input type="radio" name="gen-format" value="3"> ベスト英訳+注釈</label>
                     </div>
                 </div>
-                <div>
-                    <label>大学別チューニング</label>
-                    <select id="gen-university">
-                        <option value="">なし</option>
-                        <option value="kyoto">京都大学</option>
-                        <option value="osaka">大阪大学</option>
-                        <option value="kobe">神戸大学</option>
-                        <option value="kyoto_pref">京都府立大学</option>
-                        <option value="osaka_metro">大阪公立大学</option>
-                        <option value="custom">カスタム</option>
-                    </select>
-                    <input id="gen-university-custom" type="text" placeholder="カスタム出題傾向..." style="display:none; margin-top:4px;">
-                </div>
             </div>
+
+            <details class="advanced-options">
+                <summary>詳細オプション</summary>
+                <div style="padding: 8px 0;">
+                    <label>サンプリングモード</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="gen-sampling" value="normal" checked> 標準（4サンプル）</label>
+                        <label><input type="radio" name="gen-sampling" value="extended"> 拡張（12サンプル）</label>
+                    </div>
+                    <p class="text-muted-sm">拡張モードは各LLMを3温度で呼び出し、より精度の高い中央値を抽出します。処理時間が約3倍になります。</p>
+                </div>
+            </details>
 
             <button class="btn-primary" id="btn-generate">実行</button>
         </div>
@@ -54,9 +54,9 @@
                 <h2>統合結果</h2>
                 <div class="result-actions">
                     <div class="format-switch">
-                        <button class="format-btn" data-format="1">3段階</button>
-                        <button class="format-btn" data-format="2">ベスト</button>
-                        <button class="format-btn" data-format="3">並列</button>
+                        <button class="format-btn" data-format="1">標準</button>
+                        <button class="format-btn" data-format="2">許容範囲</button>
+                        <button class="format-btn" data-format="3">ベスト</button>
                     </div>
                     <button class="btn-copy" id="btn-copy-gen">コピー</button>
                 </div>
@@ -95,26 +95,6 @@
             <label>出典情報（任意）</label>
             <input id="rev-context" type="text" placeholder="例: 京大2024 大問2">
 
-            <div class="form-row">
-                <div>
-                    <label>大学別チューニング</label>
-                    <select id="rev-university">
-                        <option value="">なし</option>
-                        <option value="kyoto">京都大学</option>
-                        <option value="osaka">大阪大学</option>
-                        <option value="kobe">神戸大学</option>
-                        <option value="kyoto_pref">京都府立大学</option>
-                        <option value="osaka_metro">大阪公立大学</option>
-                        <option value="custom">カスタム</option>
-                    </select>
-                    <input id="rev-university-custom" type="text" placeholder="カスタム出題傾向..." style="display:none; margin-top:4px;">
-                </div>
-                <div class="checkbox-group">
-                    <label><input type="checkbox" id="rev-scoring"> 減点シミュレーション</label>
-                    <label><input type="checkbox" id="rev-compare" disabled title="先に英訳生成を実行してください"> 生成結果との比較</label>
-                </div>
-            </div>
-
             <button class="btn-primary" id="btn-review">レビュー実行</button>
         </div>
 
@@ -152,21 +132,17 @@
             <textarea id="batch-input" rows="12" placeholder="1. 私は正しいと思うことをした&#10;2. 意味もよく知らない言葉は使わないほうがよい&#10;3. 彼は私と性格が正反対だ /force to&#10;4. 幾つかの短い道は全部木に覆われていた /force little /ban few"></textarea>
             <p class="text-muted-sm">ディレクティブ: <code>/force 語句</code>（必須使用）<code>/ban 語句</code>（使用禁止）<code>/hint テキスト</code>（ヒント）を行末に追加可</p>
 
-            <div class="form-row">
-                <div>
-                    <label>大学別チューニング</label>
-                    <select id="batch-university">
-                        <option value="">なし</option>
-                        <option value="kyoto">京都大学</option>
-                        <option value="osaka">大阪大学</option>
-                        <option value="kobe">神戸大学</option>
-                        <option value="kyoto_pref">京都府立大学</option>
-                        <option value="osaka_metro">大阪公立大学</option>
-                        <option value="custom">カスタム</option>
-                    </select>
-                    <input id="batch-university-custom" type="text" placeholder="カスタム出題傾向..." style="display:none; margin-top:4px;">
+            <details class="advanced-options">
+                <summary>詳細オプション</summary>
+                <div style="padding: 8px 0;">
+                    <label>サンプリングモード</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="batch-sampling" value="normal" checked> 標準（4サンプル）</label>
+                        <label><input type="radio" name="batch-sampling" value="extended"> 拡張（12サンプル）</label>
+                    </div>
+                    <p class="text-muted-sm">拡張モードは各LLMを3温度で呼び出し、より精度の高い中央値を抽出します。処理時間が約3倍になります。</p>
                 </div>
-            </div>
+            </details>
 
             <button class="btn-primary" id="btn-batch">バッチ実行</button>
         </div>
@@ -178,6 +154,49 @@
                 <div id="batch-meta" class="result-meta"></div>
             </div>
             <div id="batch-items"></div>
+
+            <!-- 質問 -->
+            <div class="ask-section">
+                <h3>結果について質問</h3>
+                <div id="batch-ask-history" class="ask-history"></div>
+                <div class="ask-input-row">
+                    <label>質問</label>
+                    <textarea id="batch-ask-input" rows="3" placeholder="バッチ結果について質問..."></textarea>
+                    <button class="btn-primary" id="btn-batch-ask">質問</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- バッチレビュータブ -->
+    <div id="tab-batch-review" class="tab-panel">
+        <div class="translate-form">
+            <label>日本語文+英訳ペアリスト</label>
+            <textarea id="batch-rev-input" rows="15" placeholder="1. 私は正しいと思うことをした&#10;I did what I thought was right.&#10;2. 意味もよく知らない言葉は使わないほうがよい&#10;You should not use words whose meaning you don't know well.&#10;You had better not use words that you are not familiar with.&#10;3. 彼は昔の彼と全く違う&#10;He is very different from what he used to be."></textarea>
+            <p class="text-muted-sm">番号付き行＝日本語文、続く英語行＝英訳（複数可）。空行はペア区切り。</p>
+
+            <button class="btn-primary" id="btn-batch-review">レビュー実行</button>
+        </div>
+
+        <!-- バッチレビュー結果 -->
+        <div id="batch-rev-result" class="result-area" style="display:none;">
+            <div class="result-header">
+                <h2>バッチレビュー結果</h2>
+                <button class="btn-copy" id="btn-copy-batch-rev">コピー（Markdown）</button>
+                <div id="batch-rev-meta" class="result-meta"></div>
+            </div>
+            <div id="batch-rev-items"></div>
+
+            <!-- 質問 -->
+            <div class="ask-section">
+                <h3>結果について質問</h3>
+                <div id="batch-rev-ask-history" class="ask-history"></div>
+                <div class="ask-input-row">
+                    <label>質問</label>
+                    <textarea id="batch-rev-ask-input" rows="3" placeholder="バッチレビュー結果について質問..."></textarea>
+                    <button class="btn-primary" id="btn-batch-rev-ask">質問</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -253,14 +272,6 @@ function switchTab(tab) {
     if (tab === 'history') loadHistory();
 }
 
-// ---- University custom toggle ----
-document.getElementById('gen-university').addEventListener('change', function() {
-    document.getElementById('gen-university-custom').style.display = this.value === 'custom' ? 'block' : 'none';
-});
-document.getElementById('rev-university').addEventListener('change', function() {
-    document.getElementById('rev-university-custom').style.display = this.value === 'custom' ? 'block' : 'none';
-});
-
 // ---- Loading ----
 let _loadingTimer = null;
 let _loadingStart = 0;
@@ -324,12 +335,14 @@ async function submitGenerate() {
     if (!text) { showToast('日本語文を入力してください', 'warning'); return; }
 
     const format = parseInt(document.querySelector('input[name="gen-format"]:checked').value);
-    const university = document.getElementById('gen-university').value || null;
-    const customText = document.getElementById('gen-university-custom').value || null;
     const context = document.getElementById('gen-context').value || null;
+    const sampling = document.querySelector('input[name="gen-sampling"]:checked')?.value || 'normal';
 
     const btn = document.getElementById('btn-generate');
-    showLoading('4LLMに英訳を並列リクエスト中...');
+    const loadMsg = sampling === 'extended'
+        ? '4LLM×3温度=12並列リクエスト中...'
+        : '4LLMに英訳を並列リクエスト中...';
+    showLoading(loadMsg);
     btn.disabled = true;
     btn.textContent = '処理中...';
     try {
@@ -337,8 +350,7 @@ async function submitGenerate() {
             japanese_text: text,
             output_format: format,
             context: context,
-            university: university,
-            university_custom: university === 'custom' ? customText : null,
+            sampling_mode: sampling,
         });
         _rawTranslations = data.raw_translations;
         _integratedMarkdown = data.integrated_result;
@@ -351,9 +363,6 @@ async function submitGenerate() {
         _askConversation = [];
         document.getElementById('ask-history').innerHTML = '';
 
-        // Enable compare option in review tab
-        document.getElementById('rev-compare').disabled = false;
-        document.getElementById('rev-compare').title = '';
     } catch (e) {
         showLoadingError(e.message);
     } finally {
@@ -382,14 +391,24 @@ function renderGenerateResult(data) {
         b.classList.toggle('active', parseInt(b.dataset.format) === (data.output_format || _currentFormat));
     });
 
-    // Raw outputs
+    // Raw outputs (handle both normal: string and extended: array)
     const rawDiv = document.getElementById('gen-raw-outputs');
-    rawDiv.innerHTML = Object.entries(data.raw_translations || _rawTranslations).map(([k, v]) => `
-        <div class="llm-raw-block">
-            <h4><span class="llm-badge llm-${k}">${k}</span></h4>
-            <div class="markdown-body">${renderMarkdown(v)}</div>
-        </div>
-    `).join('');
+    rawDiv.innerHTML = Object.entries(data.raw_translations || _rawTranslations).map(([k, v]) => {
+        let content;
+        if (Array.isArray(v)) {
+            const temps = [0.3, 0.7, 1.0];
+            content = v.map((t, i) =>
+                `<div style="margin-bottom:8px;"><strong>T=${temps[i] ?? '?'}:</strong> ${renderMarkdown(t)}</div>`
+            ).join('');
+        } else {
+            content = renderMarkdown(v);
+        }
+        return `
+            <div class="llm-raw-block">
+                <h4><span class="llm-badge llm-${k}">${k}</span></h4>
+                <div class="markdown-body">${content}</div>
+            </div>`;
+    }).join('');
 }
 
 async function reformatOutput(format) {
@@ -399,15 +418,11 @@ async function reformatOutput(format) {
     showLoading('形式変更中（Claude統合のみ）...');
     try {
         const text = document.getElementById('gen-japanese').value.trim();
-        const university = document.getElementById('gen-university').value || null;
-        const customText = document.getElementById('gen-university-custom').value || null;
 
         const data = await apiPost('api/staff/translate/reformat', {
             japanese_text: text,
             raw_translations: _rawTranslations,
             output_format: format,
-            university: university,
-            university_custom: university === 'custom' ? customText : null,
         });
         _integratedMarkdown = data.integrated_result;
         _currentFormat = format;
@@ -443,24 +458,13 @@ async function submitReview() {
     if (!text) { showToast('日本語文を入力してください', 'warning'); return; }
     if (!translation) { showToast('英訳を入力してください', 'warning'); return; }
 
-    const university = document.getElementById('rev-university').value || null;
-    const customText = document.getElementById('rev-university-custom').value || null;
     const context = document.getElementById('rev-context').value || null;
-    const scoring = document.getElementById('rev-scoring').checked;
-    const compare = document.getElementById('rev-compare').checked;
 
     const body = {
         japanese_text: text,
         user_translation: translation,
         context: context,
-        university: university,
-        university_custom: university === 'custom' ? customText : null,
-        scoring_simulation: scoring,
-        compare_with_generated: compare,
     };
-    if (compare && _rawTranslations) {
-        body.previous_translations = _rawTranslations;
-    }
 
     const btnR = document.getElementById('btn-review');
     showLoading('4LLMにレビューを並列リクエスト中...');
@@ -521,19 +525,19 @@ async function loadHistory() {
             div.innerHTML = '<p class="text-muted-sm">履歴がありません。</p>';
             return;
         }
-        const FORMAT_LABELS = {1: '3段階', 2: 'ベスト', 3: '並列'};
+        const FORMAT_LABELS = {1: '標準', 2: '許容範囲', 3: 'ベスト'};
         div.innerHTML = `
+            <div class="history-table-wrap">
             <table class="table">
                 <thead><tr>
-                    <th>日時</th><th>モード</th><th>日本語文</th><th>大学</th><th>形式</th><th>処理時間</th><th></th>
+                    <th>日時</th><th>モード</th><th>日本語文</th><th>形式</th><th>時間</th><th></th>
                 </tr></thead>
                 <tbody>
                 ${data.items.map(r => `
                     <tr>
                         <td class="text-muted-sm">${r.created_at}</td>
-                        <td><span class="mode-badge mode-${r.mode}">${r.mode === 'translate' ? '生成' : r.mode === 'batch' ? 'バッチ' : 'レビュー'}</span></td>
-                        <td class="cell-jp-text">${escapeHtml(r.japanese_text)}</td>
-                        <td>${r.university || '-'}</td>
+                        <td><span class="mode-badge mode-${r.mode}">${r.mode === 'translate' ? '生成' : r.mode === 'batch' ? 'バッチ' : r.mode === 'batch_review' ? 'Bレビュー' : 'レビュー'}</span></td>
+                        <td class="cell-jp-text" title="${escapeHtml(r.japanese_text)}">${escapeHtml(r.japanese_text)}</td>
                         <td>${r.output_format ? FORMAT_LABELS[r.output_format] || r.output_format : '-'}</td>
                         <td>${(r.processing_time_ms / 1000).toFixed(1)}s</td>
                         <td>
@@ -545,6 +549,7 @@ async function loadHistory() {
                 `).join('')}
                 </tbody>
             </table>
+            </div>
         `;
     } catch (e) {
         div.innerHTML = '<p class="text-danger">履歴の読み込みに失敗しました。</p>';
@@ -562,7 +567,7 @@ async function viewHistoryDetail(id) {
         const raw = JSON.parse(data.raw_results_json);
         const llmTimes = data.llm_times_json ? JSON.parse(data.llm_times_json) : {};
 
-        const modeLabel = data.mode === 'translate' ? '英訳生成' : data.mode === 'batch' ? 'バッチ英訳' : '英訳レビュー';
+        const modeLabel = data.mode === 'translate' ? '英訳生成' : data.mode === 'batch' ? 'バッチ英訳' : data.mode === 'batch_review' ? 'バッチレビュー' : '英訳レビュー';
         let html = `<h3>${modeLabel} — ${data.created_at}</h3>`;
         html += `<p><strong>日本語文:</strong> ${escapeHtml(data.japanese_text)}</p>`;
         if (data.user_translation) {
@@ -578,7 +583,15 @@ async function viewHistoryDetail(id) {
         for (const [k, v] of Object.entries(raw)) {
             const t = llmTimes[k] ? ` (${(llmTimes[k] / 1000).toFixed(1)}s)` : '';
             html += `<div class="llm-raw-block"><h4><span class="llm-badge llm-${k}">${k}${t}</span></h4>`;
-            html += `<div class="markdown-body">${renderMarkdown(v)}</div></div>`;
+            if (Array.isArray(v)) {
+                const temps = [0.3, 0.7, 1.0];
+                html += `<div class="markdown-body">${v.map((s, i) =>
+                    `<div style="margin-bottom:8px;"><strong>T=${temps[i] ?? '?'}:</strong> ${renderMarkdown(s)}</div>`
+                ).join('')}</div>`;
+            } else {
+                html += `<div class="markdown-body">${renderMarkdown(v)}</div>`;
+            }
+            html += `</div>`;
         }
         html += `</details>`;
 
@@ -595,6 +608,10 @@ async function reuseHistory(id, mode) {
             document.getElementById('gen-japanese').value = data.japanese_text;
             if (data.context) document.getElementById('gen-context').value = data.context;
             switchTab('generate');
+        } else if (mode === 'batch' || mode === 'batch_review') {
+            const targetId = mode === 'batch_review' ? 'batch-rev-input' : 'batch-input';
+            document.getElementById(targetId).value = data.japanese_text;
+            switchTab(mode === 'batch_review' ? 'batch-review' : 'batch');
         } else {
             document.getElementById('rev-japanese').value = data.japanese_text;
             document.getElementById('rev-translation').value = data.user_translation || '';
@@ -635,27 +652,36 @@ if (typeof showToast === 'undefined') {
 }
 
 // ---- Batch ----
-document.getElementById('batch-university').addEventListener('change', function() {
-    document.getElementById('batch-university-custom').style.display = this.value === 'custom' ? 'block' : 'none';
-});
+let _batchIntegratedResult = null;
+let _batchRawTranslations = null;
+let _batchJapaneseTexts = null;
 
 async function submitBatch() {
     const text = document.getElementById('batch-input').value.trim();
     if (!text) { showToast('日本語文を入力してください', 'warning'); return; }
 
-    const university = document.getElementById('batch-university').value || null;
-    const customText = document.getElementById('batch-university-custom').value || null;
+    const sampling = document.querySelector('input[name="batch-sampling"]:checked')?.value || 'normal';
     const btn = document.getElementById('btn-batch');
 
-    showLoading('バッチ英訳: 4LLMに一括リクエスト中...');
+    const loadMsg = sampling === 'extended'
+        ? 'バッチ英訳: 4LLM×3温度=12並列リクエスト中...'
+        : 'バッチ英訳: 4LLMに一括リクエスト中...';
+    showLoading(loadMsg);
     btn.disabled = true;
     btn.textContent = '処理中...';
     try {
         const data = await apiPost('api/staff/translate/batch', {
             input_text: text,
-            university: university,
-            university_custom: university === 'custom' ? customText : null,
+            sampling_mode: sampling,
         });
+
+        // Store for question feature
+        _batchIntegratedResult = data.integrated_result || '';
+        _batchRawTranslations = data.raw_translations || {};
+        _batchJapaneseTexts = (data.items || []).map(i => i.japanese_text).join('\n');
+        _batchAskConversation = [];
+        document.getElementById('batch-ask-history').innerHTML = '';
+
         renderBatchResult(data);
         hideLoading();
     } catch (e) {
@@ -678,6 +704,25 @@ function renderBatchResult(data) {
         ).join('')}
     `;
 
+    // Parse best_translation and reason from integrated_detail
+    function parseBestAndReason(detail) {
+        let best = '', reason = '';
+        if (!detail) return { best, reason };
+        for (const line of detail.split('\n')) {
+            if (line.startsWith('標準訳:')) best = line.slice('標準訳:'.length).trim();
+            else if (line.startsWith('ベスト英訳:')) best = best || line.slice('ベスト英訳:'.length).trim();
+            else if (line.startsWith('採用ポイント:')) reason = line.slice('採用ポイント:'.length).trim();
+            else if (line.startsWith('注意点:')) {
+                const note = line.slice('注意点:'.length).trim();
+                if (note) reason += (reason ? '\n' : '') + '注意点: ' + note;
+            }
+        }
+        return { best, reason };
+    }
+
+    const LLM_ORDER = ['claude', 'chatgpt', 'gemini', 'grok'];
+    const LLM_LABELS = { claude: 'Claude', chatgpt: 'ChatGPT', gemini: 'Gemini', grok: 'Grok' };
+
     const itemsDiv = document.getElementById('batch-items');
     itemsDiv.innerHTML = data.items.map(item => {
         const directives = [];
@@ -685,27 +730,40 @@ function renderBatchResult(data) {
         if (item.ban_words.length) directives.push(`<span class="directive-badge ban">/ban ${escapeHtml(item.ban_words.join(', '))}</span>`);
         if (item.hint) directives.push(`<span class="directive-badge hint">/hint ${escapeHtml(item.hint)}</span>`);
 
+        const { best, reason } = parseBestAndReason(item.integrated_detail);
+
+        // Build per-LLM output rows in specified order
+        const llmRows = LLM_ORDER.map(k => {
+            const v = item.raw_translations[k];
+            return `
+                <div class="batch-llm-row">
+                    <span class="llm-badge llm-${k}">${LLM_LABELS[k]}</span>
+                    <div class="batch-llm-text">${v ? renderMarkdown(v) : '<em>（出力なし）</em>'}</div>
+                </div>`;
+        }).join('');
+
         return `
         <div class="batch-item">
             <div class="batch-item-header" data-batch-toggle="${item.number}">
                 <span class="batch-num">【${item.number}】</span>
                 <div class="batch-item-content">
                     <div class="batch-jp">${escapeHtml(item.japanese_text)} ${directives.join(' ')}</div>
-                    <div class="batch-best">${escapeHtml(item.best_translation)}</div>
+                    <div class="batch-best">${escapeHtml(best)}</div>
                 </div>
                 <span class="batch-expand-icon">▶</span>
             </div>
             <div class="batch-detail" id="batch-detail-${item.number}" style="display:none;">
-                <div class="markdown-body">${renderMarkdown(item.integrated_detail)}</div>
-                <details class="llm-details">
-                    <summary>4LLM個別出力</summary>
-                    ${Object.entries(item.raw_translations).map(([k, v]) => `
-                        <div class="llm-raw-block">
-                            <h4><span class="llm-badge llm-${k}">${k}</span></h4>
-                            <div class="markdown-body">${v ? renderMarkdown(v) : '<em>（該当セクションなし）</em>'}</div>
-                        </div>
-                    `).join('')}
-                </details>
+                <div class="batch-section-label">日本語文</div>
+                <div class="batch-section-body">${escapeHtml(item.japanese_text)} ${directives.join(' ')}</div>
+
+                <div class="batch-section-label">各LLM出力</div>
+                ${llmRows}
+
+                <div class="batch-section-label">ベスト解答</div>
+                <div class="batch-section-body batch-best-highlight">${escapeHtml(best)}</div>
+
+                ${reason ? `<div class="batch-section-label">選定理由</div><div class="batch-section-body">${renderMarkdown(reason)}</div>` : ''}
+
                 <button class="btn-sm btn-reuse" data-action="open-single" data-text="${escapeHtml(item.japanese_text)}">単文モードで開く</button>
             </div>
         </div>`;
@@ -876,6 +934,253 @@ async function submitRevAsk() {
 document.getElementById('btn-rev-ask').addEventListener('click', submitRevAsk);
 document.getElementById('rev-ask-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitRevAsk(); }
+});
+
+// ---- Batch Review ----
+let _batchRevIntegratedResult = null;
+let _batchRevRawTranslations = null;
+let _batchRevJapaneseTexts = null;
+let _batchRevItems = null;
+
+async function submitBatchReview() {
+    const text = document.getElementById('batch-rev-input').value.trim();
+    if (!text) { showToast('日本語文+英訳を入力してください', 'warning'); return; }
+
+    const btn = document.getElementById('btn-batch-review');
+    showLoading('バッチレビュー: 4LLMに一括リクエスト中...');
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    try {
+        const data = await apiPost('api/staff/translate/batch-review', {
+            input_text: text,
+        });
+
+        _batchRevIntegratedResult = data.integrated_result || '';
+        _batchRevRawTranslations = data.raw_translations || {};
+        _batchRevJapaneseTexts = (data.items || []).map(i => i.japanese_text).join('\n');
+        _batchRevItems = data.items || [];
+        _batchRevAskConversation = [];
+        document.getElementById('batch-rev-ask-history').innerHTML = '';
+
+        renderBatchReviewResult(data);
+        hideLoading();
+    } catch (e) {
+        showLoadingError(e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'レビュー実行';
+    }
+}
+
+function extractGrade(text) {
+    if (!text) return '';
+    const m = text.match(/\b([ABCD])\b/);
+    return m ? m[1] : '';
+}
+
+function renderBatchReviewResult(data) {
+    const area = document.getElementById('batch-rev-result');
+    area.style.display = 'block';
+
+    const meta = data.metadata;
+    document.getElementById('batch-rev-meta').innerHTML = `
+        <span>全${meta.total_items}件 / ${(meta.processing_time_ms / 1000).toFixed(1)}秒</span>
+        ${Object.entries(meta.llm_times).map(([k, v]) =>
+            `<span class="llm-badge llm-${k}">${k}: ${(v / 1000).toFixed(1)}s</span>`
+        ).join('')}
+    `;
+
+    const LLM_ORDER = ['claude', 'chatgpt', 'gemini', 'grok'];
+    const LLM_LABELS = { claude: 'Claude', chatgpt: 'ChatGPT', gemini: 'Gemini', grok: 'Grok' };
+
+    const itemsDiv = document.getElementById('batch-rev-items');
+    itemsDiv.innerHTML = data.items.map(item => {
+        const grade = extractGrade(item.integrated_review);
+        const gradeClass = grade ? `grade-${grade}` : '';
+        const jpTruncated = item.japanese_text.length > 40
+            ? item.japanese_text.slice(0, 40) + '...' : item.japanese_text;
+        const transCount = item.user_translations.length > 1
+            ? ` (${item.user_translations.length}訳)` : '';
+
+        const llmRows = LLM_ORDER.map(k => {
+            const v = item.raw_reviews[k];
+            return `
+                <div class="batch-llm-row">
+                    <span class="llm-badge llm-${k}">${LLM_LABELS[k]}</span>
+                    <div class="batch-llm-text">${v ? renderMarkdown(v) : '<em>（出力なし）</em>'}</div>
+                </div>`;
+        }).join('');
+
+        return `
+        <div class="batch-item">
+            <div class="batch-item-header" data-batch-rev-toggle="${item.number}">
+                <span class="batch-num">【${item.number}】</span>
+                <div class="batch-item-content">
+                    <div class="batch-jp">${escapeHtml(jpTruncated)}${transCount}</div>
+                </div>
+                ${grade ? `<span class="grade-badge ${gradeClass}">${grade}</span>` : ''}
+                <span class="batch-expand-icon">▶</span>
+            </div>
+            <div class="batch-detail" id="batch-rev-detail-${item.number}" style="display:none;">
+                <div class="batch-section-label">日本語文</div>
+                <div class="batch-section-body">${escapeHtml(item.japanese_text)}</div>
+
+                <div class="batch-section-label">英訳</div>
+                ${item.user_translations.map((t, i) =>
+                    `<div class="batch-section-body" style="margin-bottom:4px;">${item.user_translations.length > 1 ? `<strong>${i+1}.</strong> ` : ''}${escapeHtml(t)}</div>`
+                ).join('')}
+
+                <div class="batch-section-label">統合レビュー</div>
+                <div class="batch-section-body markdown-body">${renderMarkdown(item.integrated_review)}</div>
+
+                <details class="llm-details">
+                    <summary>各LLMのレビュー</summary>
+                    ${llmRows}
+                </details>
+
+                <button class="btn-sm btn-reuse" data-action="open-review" data-jp="${escapeHtml(item.japanese_text)}" data-en="${escapeHtml(item.user_translations[0] || '')}">単体モードで開く</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Event: batch-review button
+document.getElementById('btn-batch-review').addEventListener('click', submitBatchReview);
+
+// Event: batch-review accordion toggle + single mode (event delegation)
+document.getElementById('batch-rev-items').addEventListener('click', function(e) {
+    const header = e.target.closest('[data-batch-rev-toggle]');
+    if (header) {
+        const num = header.dataset.batchRevToggle;
+        const detail = document.getElementById('batch-rev-detail-' + num);
+        const icon = header.querySelector('.batch-expand-icon');
+        if (detail) {
+            const open = detail.style.display !== 'none';
+            detail.style.display = open ? 'none' : 'block';
+            if (icon) icon.textContent = open ? '▶' : '▼';
+        }
+        return;
+    }
+    const reviewBtn = e.target.closest('[data-action="open-review"]');
+    if (reviewBtn) {
+        document.getElementById('rev-japanese').value = reviewBtn.dataset.jp;
+        document.getElementById('rev-translation').value = reviewBtn.dataset.en;
+        switchTab('review');
+        showToast('レビュータブにセットしました', 'success');
+    }
+});
+
+// Copy batch review as Markdown
+document.getElementById('btn-copy-batch-rev').addEventListener('click', function() {
+    if (!_batchRevIntegratedResult) { showToast('結果がありません', 'warning'); return; }
+    navigator.clipboard.writeText(_batchRevIntegratedResult).then(
+        () => showToast('コピーしました', 'success'),
+        () => showToast('コピーに失敗しました', 'error'),
+    );
+});
+
+// ---- Ask about batch review result ----
+let _batchRevAskConversation = [];
+
+async function submitBatchRevAsk() {
+    const input = document.getElementById('batch-rev-ask-input');
+    const question = input.value.trim();
+    if (!question) return;
+    if (!_batchRevIntegratedResult) {
+        showToast('先にバッチレビューを実行してください', 'warning');
+        return;
+    }
+
+    const historyDiv = document.getElementById('batch-rev-ask-history');
+    historyDiv.innerHTML += `<div class="ask-bubble ask-user">${escapeHtml(question)}</div>`;
+    input.value = '';
+    input.disabled = true;
+    document.getElementById('btn-batch-rev-ask').disabled = true;
+    historyDiv.innerHTML += `<div class="ask-bubble ask-assistant" id="batch-rev-ask-typing">回答中...</div>`;
+    historyDiv.scrollTop = historyDiv.scrollHeight;
+
+    try {
+        const data = await apiPost('api/staff/translate/ask', {
+            question: question,
+            japanese_text: _batchRevJapaneseTexts || '',
+            integrated_result: _batchRevIntegratedResult,
+            raw_translations: _batchRevRawTranslations,
+            conversation: _batchRevAskConversation,
+        });
+
+        const typing = document.getElementById('batch-rev-ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-assistant"><div class="markdown-body">${renderMarkdown(data.answer)}</div></div>`;
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+
+        _batchRevAskConversation.push({role: 'user', content: question});
+        _batchRevAskConversation.push({role: 'assistant', content: data.answer});
+    } catch (e) {
+        const typing = document.getElementById('batch-rev-ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-error">エラー: ${escapeHtml(e.message)}</div>`;
+    } finally {
+        input.disabled = false;
+        document.getElementById('btn-batch-rev-ask').disabled = false;
+        input.focus();
+    }
+}
+
+document.getElementById('btn-batch-rev-ask').addEventListener('click', submitBatchRevAsk);
+document.getElementById('batch-rev-ask-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitBatchRevAsk(); }
+});
+
+// ---- Ask about batch result ----
+let _batchAskConversation = [];
+
+async function submitBatchAsk() {
+    const input = document.getElementById('batch-ask-input');
+    const question = input.value.trim();
+    if (!question) return;
+    if (!_batchIntegratedResult) {
+        showToast('先にバッチ英訳を実行してください', 'warning');
+        return;
+    }
+
+    const historyDiv = document.getElementById('batch-ask-history');
+    historyDiv.innerHTML += `<div class="ask-bubble ask-user">${escapeHtml(question)}</div>`;
+    input.value = '';
+    input.disabled = true;
+    document.getElementById('btn-batch-ask').disabled = true;
+    historyDiv.innerHTML += `<div class="ask-bubble ask-assistant" id="batch-ask-typing">回答中...</div>`;
+    historyDiv.scrollTop = historyDiv.scrollHeight;
+
+    try {
+        const data = await apiPost('api/staff/translate/ask', {
+            question: question,
+            japanese_text: _batchJapaneseTexts || '',
+            integrated_result: _batchIntegratedResult,
+            raw_translations: _batchRawTranslations,
+            conversation: _batchAskConversation,
+        });
+
+        const typing = document.getElementById('batch-ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-assistant"><div class="markdown-body">${renderMarkdown(data.answer)}</div></div>`;
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+
+        _batchAskConversation.push({role: 'user', content: question});
+        _batchAskConversation.push({role: 'assistant', content: data.answer});
+    } catch (e) {
+        const typing = document.getElementById('batch-ask-typing');
+        if (typing) typing.remove();
+        historyDiv.innerHTML += `<div class="ask-bubble ask-error">エラー: ${escapeHtml(e.message)}</div>`;
+    } finally {
+        input.disabled = false;
+        document.getElementById('btn-batch-ask').disabled = false;
+        input.focus();
+    }
+}
+
+document.getElementById('btn-batch-ask').addEventListener('click', submitBatchAsk);
+document.getElementById('batch-ask-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitBatchAsk(); }
 });
 
 // Fallback: marked.js may not be loaded yet (async)

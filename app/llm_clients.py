@@ -27,20 +27,26 @@ from app.config import (
 logger = logging.getLogger(__name__)
 
 
-async def call_claude(system: str, user: str, model: str | None = None, max_tokens: int | None = None) -> str:
+async def call_claude(
+    system: str, user: str, model: str | None = None,
+    max_tokens: int | None = None, temperature: float | None = None,
+) -> str:
     """Claude APIを非同期で呼び出す。"""
     client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY, timeout=TRANSLATE_TIMEOUT)
     response = await client.messages.create(
         model=model or TRANSLATE_CLAUDE_MODEL,
         max_tokens=max_tokens or TRANSLATE_MAX_TOKENS,
-        temperature=0,
+        temperature=temperature if temperature is not None else 0,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
     return response.content[0].text
 
 
-async def call_gemini(system: str, user: str, model: str | None = None, max_tokens: int | None = None) -> str:
+async def call_gemini(
+    system: str, user: str, model: str | None = None,
+    max_tokens: int | None = None, temperature: float | None = None,
+) -> str:
     """Gemini APIを非同期で呼び出す。system_instructionでsystem/user分離。"""
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY が設定されていません")
@@ -48,7 +54,7 @@ async def call_gemini(system: str, user: str, model: str | None = None, max_toke
     config = types.GenerateContentConfig(
         system_instruction=system,
         max_output_tokens=max_tokens or TRANSLATE_MAX_TOKENS,
-        temperature=0,
+        temperature=temperature if temperature is not None else 0,
         http_options=types.HttpOptions(timeout=TRANSLATE_TIMEOUT * 1000),
     )
     response = await asyncio.to_thread(
@@ -60,7 +66,10 @@ async def call_gemini(system: str, user: str, model: str | None = None, max_toke
     return response.text
 
 
-async def call_openai(system: str, user: str, model: str | None = None, max_tokens: int | None = None) -> str:
+async def call_openai(
+    system: str, user: str, model: str | None = None,
+    max_tokens: int | None = None, temperature: float | None = None,
+) -> str:
     """OpenAI (ChatGPT) APIを非同期で呼び出す。"""
     client = AsyncOpenAI(api_key=OPENAI_API_KEY, timeout=TRANSLATE_TIMEOUT)
     response = await client.chat.completions.create(
@@ -70,12 +79,15 @@ async def call_openai(system: str, user: str, model: str | None = None, max_toke
             {"role": "user", "content": user},
         ],
         max_tokens=max_tokens or TRANSLATE_MAX_TOKENS,
-        temperature=0,
+        temperature=temperature if temperature is not None else 0,
     )
     return response.choices[0].message.content
 
 
-async def call_grok(system: str, user: str, model: str | None = None, max_tokens: int | None = None) -> str:
+async def call_grok(
+    system: str, user: str, model: str | None = None,
+    max_tokens: int | None = None, temperature: float | None = None,
+) -> str:
     """Grok (xAI) APIを非同期で呼び出す。OpenAI互換API。"""
     client = AsyncOpenAI(
         base_url="https://api.x.ai/v1",
@@ -89,7 +101,7 @@ async def call_grok(system: str, user: str, model: str | None = None, max_tokens
             {"role": "user", "content": user},
         ],
         max_tokens=max_tokens or TRANSLATE_MAX_TOKENS,
-        temperature=0,
+        temperature=temperature if temperature is not None else 0,
     )
     return response.choices[0].message.content
 
@@ -139,5 +151,72 @@ async def call_all_llms(
 
     succeeded = sum(1 for t in results.values() if not t.startswith("[ERROR]"))
     logger.info("call_all_llms: %d/4 succeeded", succeeded)
+
+    return results, times
+
+
+# ---------------------------------------------------------------------------
+# 方式A: 拡張サンプリング（4LLM × 3温度 = 12並列）
+# ---------------------------------------------------------------------------
+
+TEMPERATURE_VARIANTS: list[float] = [0.3, 0.7, 1.0]
+
+
+async def call_all_llms_extended(
+    system: str,
+    user: str,
+    timeout: int | None = None,
+) -> tuple[dict[str, list[str]], dict[str, int]]:
+    """4種LLM × 3温度 = 12並列でリクエストし、結果と所要時間を返す。
+
+    Returns:
+        (results, times):
+            results = {llm_name: [result_t0, result_t1, result_t2]}
+            times   = {llm_name: max_elapsed_ms}
+    """
+    _timeout = timeout or TRANSLATE_TIMEOUT
+
+    async def _timed_call(
+        name: str, func, system: str, user: str, temperature: float,
+    ) -> tuple[str, float, str, int]:
+        start = time.monotonic()
+        try:
+            result = await asyncio.wait_for(
+                func(system, user, temperature=temperature), timeout=_timeout,
+            )
+            elapsed = int((time.monotonic() - start) * 1000)
+            return name, temperature, result, elapsed
+        except asyncio.TimeoutError:
+            elapsed = int((time.monotonic() - start) * 1000)
+            logger.warning("LLM %s (T=%.1f) timed out after %dms", name, temperature, elapsed)
+            return name, temperature, f"[ERROR] Timeout after {_timeout}s", elapsed
+        except Exception as e:
+            elapsed = int((time.monotonic() - start) * 1000)
+            logger.error("LLM %s (T=%.1f) failed: %s", name, temperature, e)
+            return name, temperature, f"[ERROR] {type(e).__name__}: {e}", elapsed
+
+    tasks = [
+        _timed_call(name, func, system, user, temp)
+        for name, func in _LLM_CALLERS.items()
+        for temp in TEMPERATURE_VARIANTS
+    ]
+    completed = await asyncio.gather(*tasks)
+
+    # グループ化: {llm_name: [result_t0, result_t1, result_t2]}
+    results: dict[str, list[str]] = {name: [] for name in _LLM_CALLERS}
+    times_all: dict[str, list[int]] = {name: [] for name in _LLM_CALLERS}
+
+    # 温度順にソートして格納
+    for name, _temp, text, elapsed in sorted(completed, key=lambda x: (x[0], x[1])):
+        results[name].append(text)
+        times_all[name].append(elapsed)
+
+    times = {name: max(ms_list) for name, ms_list in times_all.items()}
+
+    succeeded = sum(
+        1 for texts in results.values()
+        for t in texts if not t.startswith("[ERROR]")
+    )
+    logger.info("call_all_llms_extended: %d/12 succeeded", succeeded)
 
     return results, times

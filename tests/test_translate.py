@@ -255,3 +255,96 @@ class TestParseNumberedSections:
         from app.translate_service import parse_numbered_sections
         sections = parse_numbered_sections("no sections here")
         assert sections == {}
+
+
+# ---------------------------------------------------------------------------
+# バッチレビュー: パーサー
+# ---------------------------------------------------------------------------
+
+class TestParseBatchReviewInput:
+    def test_single_translation(self):
+        from app.translate_service import parse_batch_review_input
+        items = parse_batch_review_input("1. 私は正しいと思うことをした\nI did what I thought was right.")
+        assert len(items) == 1
+        assert items[0].number == 1
+        assert items[0].japanese_text == "私は正しいと思うことをした"
+        assert items[0].user_translations == ["I did what I thought was right."]
+
+    def test_multiple_translations(self):
+        from app.translate_service import parse_batch_review_input
+        text = "1. 意味もよく知らない言葉は使わないほうがよい\nYou should not use words whose meaning you don't know well.\nYou had better not use words that you are not familiar with."
+        items = parse_batch_review_input(text)
+        assert len(items) == 1
+        assert len(items[0].user_translations) == 2
+
+    def test_multiple_pairs(self):
+        from app.translate_service import parse_batch_review_input
+        text = "1. 私は正しいと思うことをした\nI did what I thought was right.\n2. 彼は昔と全く違う\nHe is very different from what he used to be."
+        items = parse_batch_review_input(text)
+        assert len(items) == 2
+        assert items[0].number == 1
+        assert items[1].number == 2
+
+    def test_empty_lines_between_pairs(self):
+        from app.translate_service import parse_batch_review_input
+        text = "1. テスト文\nTest sentence.\n\n2. もう一つ\nAnother one."
+        items = parse_batch_review_input(text)
+        assert len(items) == 2
+
+    def test_auto_numbering(self):
+        from app.translate_service import parse_batch_review_input
+        text = "テスト文\nTest sentence."
+        items = parse_batch_review_input(text)
+        assert len(items) == 1
+        assert items[0].number == 1
+
+    def test_no_translation_excluded(self):
+        from app.translate_service import parse_batch_review_input
+        text = "1. 英訳なし日本語のみ\n2. 二番目\nSecond."
+        items = parse_batch_review_input(text)
+        assert len(items) == 1
+        assert items[0].number == 2
+
+    def test_parenthesis_numbering(self):
+        from app.translate_service import parse_batch_review_input
+        text = "1) テスト文\nTest."
+        items = parse_batch_review_input(text)
+        assert len(items) == 1
+        assert items[0].number == 1
+
+
+class TestIsEnglishLine:
+    def test_english(self):
+        from app.translate_service import _is_english_line
+        assert _is_english_line("I did what I thought was right.") is True
+
+    def test_japanese(self):
+        from app.translate_service import _is_english_line
+        assert _is_english_line("私は正しいと思うことをした") is False
+
+    def test_empty(self):
+        from app.translate_service import _is_english_line
+        assert _is_english_line("") is False
+
+    def test_mixed_mostly_english(self):
+        from app.translate_service import _is_english_line
+        assert _is_english_line("Hello World こんにちは") is True
+
+
+class TestBuildBatchReviewNumberedPairs:
+    def test_single_translation(self):
+        from app.translate_prompts import build_batch_review_numbered_pairs
+        from app.translate_service import BatchReviewItem
+        items = [BatchReviewItem(number=1, japanese_text="テスト", user_translations=["Test."])]
+        result = build_batch_review_numbered_pairs(items)
+        assert "【1】" in result
+        assert "日本語: テスト" in result
+        assert "英訳: Test." in result
+
+    def test_multiple_translations(self):
+        from app.translate_prompts import build_batch_review_numbered_pairs
+        from app.translate_service import BatchReviewItem
+        items = [BatchReviewItem(number=1, japanese_text="テスト", user_translations=["Test A.", "Test B."])]
+        result = build_batch_review_numbered_pairs(items)
+        assert "英訳①: Test A." in result
+        assert "英訳②: Test B." in result

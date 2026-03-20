@@ -12,6 +12,7 @@ from app.auth import is_student
 from app.db import get_connection
 from app.translate_service import (
     generate_batch,
+    generate_batch_review,
     generate_translations,
     reformat_translations,
     review_translation,
@@ -31,11 +32,12 @@ class TranslateRequest(BaseModel):
     context: str | None = None
     university: str | None = None
     university_custom: str | None = None
+    sampling_mode: str = "normal"  # "normal" (4サンプル) | "extended" (12サンプル)
 
 
 class ReformatRequest(BaseModel):
     japanese_text: str
-    raw_translations: dict[str, str]
+    raw_translations: dict  # dict[str, str] (normal) or dict[str, list[str]] (extended)
     output_format: int = 1
     university: str | None = None
     university_custom: str | None = None
@@ -45,7 +47,7 @@ class AskRequest(BaseModel):
     question: str
     japanese_text: str
     integrated_result: str
-    raw_translations: dict[str, str]
+    raw_translations: dict  # dict[str, str] or dict[str, list[str]]
     conversation: list[dict[str, str]] = []  # [{role: "user"/"assistant", content: "..."}]
 
 
@@ -53,6 +55,7 @@ class BatchRequest(BaseModel):
     input_text: str
     university: str | None = None
     university_custom: str | None = None
+    sampling_mode: str = "normal"  # "normal" (4サンプル) | "extended" (12サンプル)
 
 
 class ReviewRequest(BaseModel):
@@ -64,6 +67,12 @@ class ReviewRequest(BaseModel):
     scoring_simulation: bool = False
     compare_with_generated: bool = False
     previous_translations: dict[str, str] | None = None
+
+
+class BatchReviewRequest(BaseModel):
+    input_text: str
+    university: str | None = None
+    university_custom: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +88,8 @@ async def api_translate(request: Request, body: TranslateRequest):
         raise HTTPException(status_code=400, detail="japanese_text is required")
     if body.output_format not in (1, 2, 3):
         raise HTTPException(status_code=400, detail="output_format must be 1, 2, or 3")
+    if body.sampling_mode not in ("normal", "extended"):
+        raise HTTPException(status_code=400, detail="sampling_mode must be 'normal' or 'extended'")
 
     result = await generate_translations(
         japanese_text=body.japanese_text,
@@ -86,6 +97,7 @@ async def api_translate(request: Request, body: TranslateRequest):
         context=body.context,
         university=body.university,
         university_custom=body.university_custom,
+        sampling_mode=body.sampling_mode,
     )
     return result
 
@@ -134,11 +146,14 @@ async def api_batch(request: Request, body: BatchRequest):
         raise HTTPException(status_code=403, detail="Staff only")
     if not body.input_text.strip():
         raise HTTPException(status_code=400, detail="input_text is required")
+    if body.sampling_mode not in ("normal", "extended"):
+        raise HTTPException(status_code=400, detail="sampling_mode must be 'normal' or 'extended'")
 
     result = await generate_batch(
         input_text=body.input_text,
         university=body.university,
         university_custom=body.university_custom,
+        sampling_mode=body.sampling_mode,
     )
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -165,6 +180,24 @@ async def api_review(request: Request, body: ReviewRequest):
         compare_with_generated=body.compare_with_generated,
         previous_translations=body.previous_translations,
     )
+    return result
+
+
+@router.post("/api/staff/translate/batch-review")
+async def api_batch_review(request: Request, body: BatchReviewRequest):
+    """バッチレビュー: 複数ペアを4LLM一括レビュー+Claude統合。"""
+    if is_student(request):
+        raise HTTPException(status_code=403, detail="Staff only")
+    if not body.input_text.strip():
+        raise HTTPException(status_code=400, detail="input_text is required")
+
+    result = await generate_batch_review(
+        input_text=body.input_text,
+        university=body.university,
+        university_custom=body.university_custom,
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
     return result
 
 
